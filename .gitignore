@@ -1,0 +1,59 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+backend/.venv/
+
+# Next.js / Node
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# uv
+# uv.lock should be committed
+
+# IDEs
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Docker local overrides
+compose.override.yaml
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Local uploads and generated files
+uploads/
+tmp/
+temp/
+
+# Test and tooling caches
+.cache/
