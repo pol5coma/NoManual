@@ -43,5 +43,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Instancia única: el cache evita releer el .env en cada petición."""
+    """Unique instance: cache avoids reading .env file on each request"""
     return Settings()
