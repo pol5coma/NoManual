@@ -45,3 +45,28 @@ dev = [
 
 [tool.uv.build-backend]
 module-root = "backend"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency markers are evaluated per request, not once at import,
+# so B008 does not apply to them.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Query",
+    "fastapi.Body",
+    "fastapi.Path",
+    "fastapi.Header",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Migrations are historical artefacts, generated and then frozen.
+"backend/alembic/versions/*" = ["E501"]
+
