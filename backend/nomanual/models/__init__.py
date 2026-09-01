@@ -22,9 +22,10 @@ from nomanual.models.indexed_page import IndexedPage
 from nomanual.models.manual import Manual, manual_product
 from nomanual.models.product import Product
 from nomanual.models.query_log import QueryLog
-from nomanual.models.tenant import Tenant
+from nomanual.models.tenant import PUBLIC_TENANT_ID, Tenant
 
 __all__ = [
+    "PUBLIC_TENANT_ID",
     "ApiKey",
     "Base",
     "Chunk",

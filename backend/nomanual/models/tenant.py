@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -7,6 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from nomanual.models._types import sa_enum
 from nomanual.models.base import Base, TimestampMixin, UUIDMixin
 from nomanual.models.enums import TenantType
+
+# Seeded by migration 7d56728e6ea1. Every manual uploaded by an end user
+# belongs to this tenant.
+PUBLIC_TENANT_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 class Tenant(UUIDMixin, TimestampMixin, Base):
