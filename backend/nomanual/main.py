@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from nomanual.api import health
+from nomanual.api import health, manuals
 from nomanual.core.db import engine
 
 
@@ -22,3 +22,4 @@ app = FastAPI(
 )
 
 app.include_router(health.router)
+app.include_router(manuals.router)

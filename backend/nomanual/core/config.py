@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # --- Uploads ---
     storage_dir: Path = PROJECT_ROOT / Path("uploads")
-    max_upload_bytes: int = 50 * 1024 * 1024  # 50 MB
+    max_upload_bytes: int = 100 * 1024 * 1024  # 50 MB
 
     # --- Monitoring ---
     langfuse_public_key: str | None = None

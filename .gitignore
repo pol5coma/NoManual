@@ -91,3 +91,6 @@ logs/
 .vscode/
 .idea/
 .DS_Store
+
+# Project specific
+/test_manuals
