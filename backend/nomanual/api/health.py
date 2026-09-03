@@ -6,6 +6,7 @@ from nomanual.core.db import get_session
 
 router = APIRouter(tags=["health"])
 
+
 @router.get("/health")
 async def health(session: AsyncSession = Depends(get_session)) -> dict[str, str]:
     """Liveness check that actually touches the database.

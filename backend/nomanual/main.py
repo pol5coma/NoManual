@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from nomanual.api import health
 from nomanual.core.db import engine
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

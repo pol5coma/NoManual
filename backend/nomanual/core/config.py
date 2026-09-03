@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
+
 class Settings(BaseSettings):
     """Configuración de NoManual, validada al arrancar.
 
@@ -13,18 +14,18 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file = PROJECT_ROOT / ".env",
-        env_file_encoding = "utf-8",
-        extra = "ignore",
+        env_file=PROJECT_ROOT / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # --- Infra---
     database_url: str
-    redis_url: str 
+    redis_url: str
     openai_api_key: str
     gemini_api_key: str
     anthropic_api_key: str
-    kimi_api_key: str 
+    kimi_api_key: str
 
     # --- Ingest ---
     embedding_model: str
