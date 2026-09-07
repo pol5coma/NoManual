@@ -1,7 +1,16 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -66,6 +75,13 @@ class Manual(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    # Set when a worker claims the manual. Lets us tell a live ingestion
+    # from one whose worker died, which `updated_at` cannot do because it
+    # moves on every write.
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+
     error: Mapped[str | None] = mapped_column(Text)
     page_count: Mapped[int | None] = mapped_column(Integer)
     chunk_count: Mapped[int | None] = mapped_column(Integer)

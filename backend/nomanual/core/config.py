@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # --- Ingest ---
     embedding_model: str
     embedding_dimensions: int = 1536
+    # A manual stuck in `processing` for longer than this is assumed dead:
+    # its worker crashed or was killed. Must stay above the celery
+    # task_time_limit (1800s) or we would reclaim tasks still working.
+    ingestion_stale_after_seconds: int = 2700  # 45 min
     chunk_size: int = 1200
     chunk_overlap: int = 150
 
