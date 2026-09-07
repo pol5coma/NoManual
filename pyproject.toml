@@ -68,6 +68,8 @@ extend-immutable-calls = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Migrations are historical artefacts, generated and then frozen.
-"backend/alembic/versions/*" = ["E501"]
+# Migrations are generated from Alembic's template and then frozen. Their style
+# is not ours to fix, and rewriting an applied migration is worse than a lint
+# warning.
+"backend/alembic/versions/*" = ["E501", "I001", "UP007", "UP035"]
 

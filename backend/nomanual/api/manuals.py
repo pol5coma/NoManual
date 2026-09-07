@@ -1,8 +1,10 @@
 import asyncio
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import insert, select
+from sqlalchemy import and_, func, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,9 +17,18 @@ from nomanual.schemas.manual import ManualOut
 
 router = APIRouter(prefix="/manuals", tags=["manuals"])
 
-# A manual is only worth re-queueing when no successful ingestion produced its
-# chunks. PROCESSING is excluded on purpose: a worker already has it.
+# States from which an ingestion may start. READY is excluded: its chunks are
+# already there. PROCESSING is handled separately, since a stale one is fair game.
 REQUEUEABLE = (ManualStatus.PENDING, ManualStatus.FAILED)
+
+CONFLICT_REASON = {
+    ManualStatus.READY: (
+        "This manual has already been processed and indexed successfully (ready)."
+    ),
+    ManualStatus.PROCESSING: (
+        "This manual is being processed right now. Wait for it to finish."
+    ),
+}
 
 
 async def _get_or_create_product(
@@ -25,8 +36,8 @@ async def _get_or_create_product(
 ) -> Product:
     """Find the product for this brand and model, creating it if needed.
 
-    Brand and model are matched case-insensitively so "balay" and "Balay" do
-    not end up as two products with two separate manual libraries.
+    Brand and model are matched case-insensitively with ilike(), so "balay"
+    and "Balay" do not end up as two products with two separate libraries.
     """
     product = await session.scalar(
         select(Product).where(
@@ -56,7 +67,55 @@ def _queue_ingestion(manual_id: UUID) -> None:
     ingest_manual.delay(str(manual_id))
 
 
-@router.post("", response_model=ManualOut, status_code=status.HTTP_202_ACCEPTED)
+async def claim_and_queue(session: AsyncSession, manual_id: UUID) -> bool:
+    """Claim a manual for ingestion and queue it. True if we won the claim.
+
+    The claim is a single conditional UPDATE, which is what makes concurrent
+    calls safe: Postgres locks the row while it runs, so a second request only
+    sees the row once the status is already `processing` and its WHERE no
+    longer matches. rowcount tells us who won.
+
+    The same statement also reclaims manuals whose worker died: a `processing`
+    older than the stale threshold is treated as abandoned.
+    """
+    settings = get_settings()
+    stale_before = datetime.now(UTC) - timedelta(
+        seconds=settings.ingestion_stale_after_seconds
+    )
+
+    result = await session.execute(
+        update(Manual)
+        .where(
+            Manual.id == manual_id,
+            or_(
+                Manual.status.in_(REQUEUEABLE),
+                and_(
+                    Manual.status == ManualStatus.PROCESSING,
+                    or_(
+                        # NULL means it was claimed before this column existed,
+                        # so there is no evidence anyone is still working on it.
+                        Manual.processing_started_at.is_(None),
+                        Manual.processing_started_at < stale_before,
+                    ),
+                ),
+            ),
+        )
+        .values(
+            status=ManualStatus.PROCESSING,
+            processing_started_at=func.now(),
+            error=None,
+        )
+    )
+    await session.commit()
+
+    if result.rowcount != 1:
+        return False
+
+    _queue_ingestion(manual_id)
+    return True
+
+
+@router.post("/upload", response_model=ManualOut, status_code=status.HTTP_202_ACCEPTED)
 async def upload_manual(
     brand: str = Form(..., min_length=1, max_length=120),
     model: str = Form(..., min_length=1, max_length=160),
@@ -116,10 +175,11 @@ async def upload_manual(
         )
         await session.commit()
 
-        # An earlier upload may have died before its chunks were produced.
-        if existing.status in REQUEUEABLE:
-            _queue_ingestion(existing.id)
-
+        # An earlier upload may have died before its chunks were produced. The
+        # claim decides: if it is already ready or genuinely running, nothing
+        # happens and we just return what we have.
+        await claim_and_queue(session, existing.id)
+        await session.refresh(existing)
         return existing
 
     product = await _get_or_create_product(session, brand, model)
@@ -145,8 +205,11 @@ async def upload_manual(
     )
 
     await session.commit()
-    _queue_ingestion(manual.id)
 
+    # Same path as the explicit endpoint, so a manual only ever reaches
+    # `processing` one way.
+    await claim_and_queue(session, manual.id)
+    await session.refresh(manual)
     return manual
 
 
@@ -155,13 +218,55 @@ async def get_manual(
     manual_id: UUID, session: AsyncSession = Depends(get_session)
 ) -> Manual:
 
-    # TODO: REDIS -> check if that manual have been requested recently.
+    # TODO: REDIS -> check if that manual have been requested recently.
 
     manual = await session.get(Manual, manual_id)
     if manual is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Manual not found.")
     return manual
 
-@router.get("",response_model=list[ManualOut])
-async def get(session: AsyncSession = Depends(get_session)) -> list[Manual]:
-    return await session.scalars(select(Manual).limit(50))
+
+@router.post(
+    "/{manual_id}/ingest",
+    response_model=ManualOut,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def ingest_manual_now(
+    manual_id: UUID, session: AsyncSession = Depends(get_session)
+) -> Manual:
+    """Queue ingestion for a manual that has not been indexed yet.
+
+    Only manuals in `pending` or `failed` are eligible, plus any left in
+    `processing` by a worker that died. Anything else returns 409.
+    """
+    manual = await session.get(Manual, manual_id)
+    if manual is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Manual not found.")
+
+    claimed = await claim_and_queue(session, manual_id)
+    await session.refresh(manual)
+
+    if not claimed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            CONFLICT_REASON.get(
+                manual.status,
+                f"This manual cannot be ingested from its current state "
+                f"({manual.status.value}).",
+            ),
+        )
+
+    return manual
+
+
+@router.get("", response_model=list[ManualOut])
+async def list_manuals(
+    session: AsyncSession = Depends(get_session),
+) -> Sequence[Manual]:
+    result = await session.scalars(
+        select(Manual)
+        .where(Manual.tenant_id == PUBLIC_TENANT_ID)
+        .order_by(Manual.created_at.desc())
+        .limit(50)
+    )
+    return result.all()
