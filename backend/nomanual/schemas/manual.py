@@ -17,4 +17,3 @@ class ManualOut(BaseModel):
     page_count: int | None = None
     chunk_count: int | None = None
     error: str | None = None
-
