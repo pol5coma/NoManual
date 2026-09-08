@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from nomanual.api import health, manuals
+from nomanual.api import debug, health, manuals
+from nomanual.core.config import get_settings
 from nomanual.core.db import engine
 
 
@@ -23,3 +24,6 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(manuals.router)
+
+if get_settings().debug_endpoints:
+    app.include_router(debug.router)

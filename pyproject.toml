@@ -19,6 +19,7 @@ dependencies = [
     "langgraph>=1.2.11",
     "openai>=3.3.1",
     "pgvector>=0.5.0",
+    "py3langid>=0.4.0",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.15.0",
     "pypdf>=6.16.2",
@@ -38,6 +39,8 @@ build-backend = "uv_build"
 dev = [
     "httpx>=0.28.1",
     "mypy>=2.3.1",
+    "pdfplumber>=0.11.10",
+    "pymupdf>=1.28.2",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.4",
@@ -73,3 +76,7 @@ extend-immutable-calls = [
 # warning.
 "backend/alembic/versions/*" = ["E501", "I001", "UP007", "UP035"]
 
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

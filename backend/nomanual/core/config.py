@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str
     kimi_api_key: str
 
+    # Mounts /debug, which exposes raw file contents. Never on in production.
+    debug_endpoints: bool = True
+
     # --- Ingest ---
     embedding_model: str
     embedding_dimensions: int = 1536
