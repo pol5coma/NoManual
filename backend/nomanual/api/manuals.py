@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
@@ -11,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nomanual.core.config import get_settings
 from nomanual.core.db import get_session
 from nomanual.core.storage import compute_checksum, get_storage
-from nomanual.models import PUBLIC_TENANT_ID, Manual, Product, manual_product
+from nomanual.models import PUBLIC_TENANT_ID, Chunk, Manual, Product, manual_product
 from nomanual.models.enums import ManualSource, ManualStatus
 from nomanual.schemas.manual import ManualOut
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/manuals", tags=["manuals"])
 
@@ -270,3 +273,82 @@ async def list_manuals(
         .limit(50)
     )
     return result.all()
+
+
+@router.get("/{manual_id}/stats")
+async def manual_stats(
+    manual_id: UUID, session: AsyncSession = Depends(get_session)
+) -> dict:
+    manual = await session.get(Manual, manual_id)
+    if manual is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Manual not found.")
+
+    # selected only the required fields using execute + select:
+    _chunks_char = await session.scalar(
+        select(func.avg(func.length(Chunk.content))).where(Chunk.manual_id == manual_id)
+    )
+
+    _chunks_language = await session.execute(
+        select(Chunk.language, func.count())
+        .where(Chunk.manual_id == manual_id)
+        .group_by(Chunk.language)
+    )
+
+    languages = dict(_chunks_language.all())
+
+    return {
+        "manual_id": manual_id,
+        "status": manual.status,
+        "tenant_id": manual.tenant_id,
+        "pages": manual.page_count,
+        "chunks": manual.chunk_count,
+        "avg_chunk_chars": int(_chunks_char),
+        "languages": languages,
+    }
+
+
+@router.delete("/{manual_id}/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_manual(
+    manual_id: UUID,
+    tenant_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Delete a manual, its chunks and its stored file.
+
+    Chunks and product links go with it: both carry ON DELETE CASCADE, so
+    Postgres removes them in the same statement.
+    """
+    manual = await session.scalar(
+        select(Manual).where(Manual.id == manual_id, Manual.tenant_id == tenant_id)
+    )
+    if manual is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Manual not found.")
+
+    if manual.status == ManualStatus.PROCESSING:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "A worker is processing this manual right now."
+        )
+
+    # Read before deleting: once the row is gone the attribute is only still
+    # readable because of expire_on_commit=False, and relying on that is fragile.
+    storage_key = manual.storage_key
+
+    try:
+        await session.delete(manual)
+        await session.commit()
+    except Exception as exc:
+        # Nothing was removed, so the caller should know it failed.
+        logger.exception("Failed to delete manual %s", manual_id)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not delete the manual."
+        ) from exc
+
+    try:
+        get_storage().delete(storage_key)
+    except OSError:
+        # The manual is already gone as far as the user is concerned. An
+        # unreferenced file is recoverable garbage, not a failed request, so a
+        # sweep job can clean it up later.
+        logger.exception(
+            "Orphaned file after deleting manual %s: %s", manual_id, storage_key
+        )
