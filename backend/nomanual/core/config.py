@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     debug_endpoints: bool = True
 
     # --- Ingest ---
-    embedding_model: str
+    embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
     # A manual stuck in `processing` for longer than this is assumed dead:
     # its worker crashed or was killed. Must stay above the celery

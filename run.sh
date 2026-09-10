@@ -5,6 +5,7 @@
 #   API + Celery      -> foreground, logs interleaved in this terminal
 #
 # Ctrl+C stops everything.
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -20,7 +21,8 @@ API_PID=$!
 # own, and a stale worker silently runs the previous version of a task.
 echo "==> Celery worker"
 uv run watchmedo auto-restart --directory=backend --pattern='*.py' --recursive -- \
-    celery -A nomanual.worker.celery_app worker --loglevel=info &
+    celery -A nomanual.worker.celery_app worker --pool=solo --loglevel=info &
+
 WORKER_PID=$!
 
 # Without this, Ctrl+C kills the script and leaves both children orphaned,

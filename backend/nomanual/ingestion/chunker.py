@@ -38,6 +38,9 @@ class TextChunk:
     language: str
     section: str | None
 
+    def __str__(self) -> str:
+        return self.content
+
 
 def _pages_spanned(
     pages: list[Page], offsets: list[int], start: int, end: int
