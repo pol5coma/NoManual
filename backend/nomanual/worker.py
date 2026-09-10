@@ -8,7 +8,7 @@ celery_app = Celery(
     "nomanual",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["nomanual.ingestion.tasks"],
+    include=["nomanual.ingestion.tasks", "nomanual.maintenance"],
 )
 
 celery_app.conf.update(

@@ -1,4 +1,5 @@
 import hashlib
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -17,6 +18,7 @@ class Storage(Protocol):
     def save(self, data: bytes, filename: str) -> str: ...
     def read(self, key: str) -> bytes: ...
     def delete(self, key: str) -> None: ...
+    def list_keys(self, min_age_seconds: float = 0) -> list[str]: ...
 
 
 class LocalStorage:
@@ -39,6 +41,24 @@ class LocalStorage:
 
     def delete(self, key: str) -> None:
         (self.root / key).unlink(missing_ok=True)
+
+    def list_keys(self, min_age_seconds: float = 0) -> list[str]:
+        """Every stored key, optionally only those older than a threshold.
+
+        The age filter exists for the orphan sweep: between save() and the
+        commit that records the row there is a window where a perfectly
+        legitimate file has no manual pointing at it yet.
+
+        An S3 implementation would list the bucket and use LastModified,
+        which is why the age lives behind this method rather than in the
+        caller.
+        """
+        cutoff = time.time() - min_age_seconds
+        return [
+            path.name
+            for path in self.root.iterdir()
+            if path.is_file() and path.stat().st_mtime <= cutoff
+        ]
 
 
 def compute_checksum(data: bytes) -> str:

@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     chunk_size: int = 1200
     chunk_overlap: int = 150
 
+    # A stored file younger than this is never treated as an orphan: the
+    # upload that created it may still be committing its row.
+    orphan_file_min_age_seconds: int = 3600
+
     # --- Uploads ---
     storage_dir: Path = PROJECT_ROOT / Path("uploads")
     max_upload_bytes: int = 100 * 1024 * 1024  # 50 MB
