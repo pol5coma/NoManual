@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -31,6 +32,12 @@ class Settings(BaseSettings):
     debug_endpoints: bool = True
 
     # --- Ingest ---
+    # pymupdf infers word boundaries from real font metrics, so it glues
+    # words together far less often than pdfplumber (0.1% vs 0.7% on a
+    # 130-page manual) and runs ~57x faster. It is AGPL-3.0 though, which
+    # matters if this ever ships as a service. Set "pdfplumber" to compare.
+    pdf_backend: Literal["pymupdf", "pdfplumber"] = "pymupdf"
+
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
     # A manual stuck in `processing` for longer than this is assumed dead:
