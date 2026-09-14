@@ -6,7 +6,8 @@
     screen ─── junk / injection ───────────────► END
        │
        ▼
-    route ──── safety / out_of_scope ──────────► refuse ──► END
+    route ──── small_talk ─────────────────────► chat ────► END
+       ├────── safety / out_of_scope ──────────► refuse ──► END
        │
        ▼
     retrieve ── nothing relevant ──────────────► escalate ► END
@@ -30,6 +31,7 @@ from langgraph.graph import END, StateGraph
 from nomanual.agent.nodes import (
     MAX_ATTEMPTS,
     MIN_SIMILARITY,
+    chat,
     escalate,
     generate,
     refuse,
@@ -54,6 +56,9 @@ def after_route(state: AnswerState) -> str:
     """
     if state["intent"] in (Intent.SAFETY, Intent.OUT_OF_SCOPE):
         return "refuse"
+    if state["intent"] is Intent.SMALL_TALK:
+        return "chat"
+
     return "retrieve"
 
 
@@ -92,15 +97,24 @@ def build_graph():
     builder.add_node("retrieve", retrieve)
     builder.add_node("generate", generate)
     builder.add_node("verify", verify)
+    builder.add_node("chat", chat)
     builder.add_node("refuse", refuse)
     builder.add_node("escalate", escalate)
 
     builder.set_entry_point("screen")
     builder.add_conditional_edges("screen", after_screen, ["route", END])
-    builder.add_conditional_edges("route", after_route, ["refuse", "retrieve"])
+    builder.add_conditional_edges(
+        # The list declares every possible destination. Returning a node that
+        # is not in it fails at compile time, with an error that does not point
+        # here.
+        "route",
+        after_route,
+        ["chat", "refuse", "retrieve"],
+    )
     builder.add_conditional_edges("retrieve", after_retrieve, ["generate", "escalate"])
     builder.add_edge("generate", "verify")
     builder.add_conditional_edges("verify", after_verify, ["generate", "escalate", END])
+    builder.add_edge("chat", END)
     builder.add_edge("refuse", END)
     builder.add_edge("escalate", END)
 

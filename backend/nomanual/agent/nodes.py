@@ -37,6 +37,8 @@ error_code   asks what a specific code or error indicator means (E5, F03, a
 how_to       asks how to operate, configure, clean or maintain the appliance
 safety       touches mains wiring, gas, refrigerant, dismantling the unit, or
              anything where a wrong instruction could injure someone
+small_talk   a greeting, thanks, or asking who you are - social, not a
+             request for information
 out_of_scope not about an appliance or its manual at all
 
 When a question could be how_to or safety, choose safety."""
@@ -54,6 +56,25 @@ are printed on the appliance, and a translated label cannot be found by the user
 
 Manual extracts:
 {context}"""
+
+# Deliberately narrow. The risk is not that it greets badly, it is that a
+# misrouted question reaches this node and gets answered with no retrieval, no
+# citations and no grounding check - a back door around every guardrail. So the
+# node refuses to leave its role even when the router hands it something else.
+_CHAT_PROMPT = """You are the greeting half of an appliance manual assistant.
+
+Reply to greetings, thanks and "who are you" in one short, warm sentence, then
+steer the person towards their appliance: invite them to describe the problem or
+name the model.
+
+If the input is anything other than social courtesy - a factual question, a
+request for instructions, anything at all - do not answer it. Say you only help
+with appliance manuals and ask what appliance they mean.
+
+Never state a fact about an appliance here. You have no manual extracts, so
+anything you assert would be unsourced.
+
+Reply in the language of the message."""
 
 _SAFETY_ANSWER = (
     "This involves electrical, gas or refrigerant work. For your safety we do "
@@ -165,6 +186,25 @@ def verify(state: AnswerState) -> AnswerState:
         }
 
     return {"grounded": True, "feedback": None}
+
+
+async def chat(state: AnswerState) -> AnswerState:
+    """Answer social messages without retrieving anything.
+
+    Goes straight to END: there is nothing to verify, because there is nothing
+    to ground. That is exactly why the prompt is so restrictive - this is the
+    one path where an answer leaves the graph without a citation.
+    """
+    response = await _model.ainvoke(
+        [("system", _CHAT_PROMPT), ("human", state["question"])]
+    )
+    return {
+        "answer": response.content.strip(),
+        "citations": [],
+        # Nothing was claimed, so nothing is unsupported. Analytics should
+        # exclude this intent rather than read it as a resolved question.
+        "grounded": True,
+    }
 
 
 def refuse(state: AnswerState) -> AnswerState:

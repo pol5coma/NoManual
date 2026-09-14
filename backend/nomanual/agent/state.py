@@ -26,6 +26,8 @@ class Intent(StrEnum):
     SAFETY = "safety"
     # not about an appliance at all
     OUT_OF_SCOPE = "out_of_scope"
+    # coordial & general talk. Minimum but conversational.
+    SMALL_TALK = "small_talk"
 
 
 class Routing(BaseModel):
