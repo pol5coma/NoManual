@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # Mounts /debug, which exposes raw file contents. Never on in production.
     debug_endpoints: bool = True
 
+    # Used for short utility calls - translating a query, classifying a
+    # question - not for answering. Small and cheap is the point.
+    chat_model: str = "gpt-4.1-2025-04-14"
+
     # --- Ingest ---
     # pymupdf infers word boundaries from real font metrics, so it glues
     # words together far less often than pdfplumber (0.1% vs 0.7% on a
