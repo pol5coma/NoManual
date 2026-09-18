@@ -8,10 +8,20 @@ It works because comparing is far easier than generating. The judge does not
 need to know anything about air conditioners - only whether "two weeks" and
 "fourteen days" say the same thing, and whether "six months" does not.
 
-Deliberately NOT given a search tool. If the judge looked the answer up using
-our own retrieval, it would inherit our retrieval's failures: when the system
-answers badly because it missed the right chunk, the judge would miss it too
-and approve. The reference answer in the case file is what breaks that loop.
+The judge reads the manual text behind the case, but is never given a search
+tool. Two reasons. Looking answers up through our own retrieval would inherit
+its failures: when the system answers badly because it missed the right chunk,
+the judge would miss it too and approve. And a measuring instrument should be
+predictable before it is clever - every decision an agent makes is another
+chance for the same case to be graded differently on two runs.
+
+That mattered here. Before the source text was passed in, the prompt both
+penalised "adds a claim the reference does not support" and allowed "extra
+context is fine". The contradiction let the model pick a rule, and it picked
+differently on consecutive runs: the same answer to the same question was
+graded correct one day and incorrect the next. With the source text, the two
+questions separate cleanly - does it cover the reference, and does it claim
+anything the manual does not say.
 """
 
 import logging
@@ -31,21 +41,27 @@ _model = ChatOpenAI(
     temperature=0,
 )
 
-_JUDGE_PROMPT = """You grade an answer from an appliance manual assistant \
-against a reference answer written from the manual itself.
+_JUDGE_PROMPT = """You grade an assistant's answer about a household appliance.
 
-Say it matches when it conveys the same facts as the reference. Wording,
-length and language may differ freely: "every two weeks", "cada dos semanas"
-and "every 14 days" all match.
+You are given three things: a reference answer written from the manual, the \
+assistant's answer, and the manual text those pages contain.
 
-Say it does not match when:
-- a number, interval or setting differs from the reference
-- it adds a specific claim the reference does not support
-- it answers a different question
-- it declines to answer while the reference gives one
+Judge two things separately.
 
-Extra context around a correct answer is fine. Being vague where the reference
-is specific is not."""
+COVERS: does the answer convey the facts of the reference? Wording, length and
+language may differ freely - "every two weeks", "cada dos semanas" and "every
+14 days" all cover the same fact. It does not cover when a number, interval or
+setting contradicts the reference, when it answers a different question, or
+when it declines while the reference gives an answer.
+
+INVENTS: does the answer state anything the manual text does not support?
+Detail the reference omits is fine as long as the manual text backs it - a
+fuller answer is a better answer. Only count a claim as invented when the
+manual text does not support it.
+
+Judge the answer against the REFERENCE for coverage, never against everything
+the manual happens to say. An answer that covers the reference is complete,
+even if the manual contains more."""
 
 _UNANSWERABLE_PROMPT = """You grade whether an appliance manual assistant \
 correctly declined to answer.
@@ -60,14 +76,28 @@ check exists to catch."""
 
 
 class Verdict(BaseModel):
-    """Structured output of the judge."""
+    """Structured output of the judge.
 
-    matches: bool
+    Two signals rather than one. Separating them is what removed the ambiguity
+    that made the judge unstable, and `invents` is a metric the system had no
+    way of producing before: how often it states something the manual does not.
+    """
+
+    covers: bool = Field(description="Conveys the facts of the reference answer.")
+    invents: bool = Field(description="States something the manual does not support.")
     reason: str = Field(description="One sentence. What differs, or why it matches.")
+
+    @property
+    def matches(self) -> bool:
+        return self.covers and not self.invents
 
 
 async def judge_answer(
-    question: str, answer: str, reference: str | None, answerable: bool
+    question: str,
+    answer: str,
+    reference: str | None,
+    answerable: bool,
+    source_text: str = "",
 ) -> Verdict:
     """Grade one answer. Falls back to a failed verdict if the judge errors.
 
@@ -79,7 +109,8 @@ async def judge_answer(
         human = (
             f"Question: {question}\n\n"
             f"Reference answer: {reference}\n\n"
-            f"Assistant's answer: {answer}"
+            f"Assistant's answer: {answer}\n\n"
+            f"Manual text for those pages:\n{source_text or '(not available)'}"
         )
     else:
         system = _UNANSWERABLE_PROMPT
@@ -91,4 +122,6 @@ async def judge_answer(
         )
     except Exception as exc:  # noqa: BLE001 - a broken judge is a failed case
         logger.exception("Judge failed on %r", question)
-        return Verdict(matches=False, reason=f"judge error: {type(exc).__name__}")
+        return Verdict(
+            covers=False, invents=False, reason=f"judge error: {type(exc).__name__}"
+        )

@@ -1,0 +1,243 @@
+{
+  "run_at": "2026-09-18T10:27:35+00:00",
+  "config": {
+    "pdf_backend": "pymupdf",
+    "chunk_size": 1200,
+    "chunk_overlap": 150,
+    "embedding_model": "text-embedding-3-small",
+    "embedding_dimensions": 1536,
+    "chat_model": "gpt-4.1-2025-04-14",
+    "top_k": 5,
+    "min_similarity": 0.35,
+    "max_attempts": 2
+  },
+  "summary": {
+    "cases": 8,
+    "answerable": 5,
+    "unanswerable": 3,
+    "recall@5": 1.0,
+    "correctness": 0.8,
+    "coverage": 0.8,
+    "invention_rate": 0.0,
+    "abstention": 1.0,
+    "escalation_rate": 0.2,
+    "median_latency_ms": 3852
+  },
+  "cases": [
+    {
+      "id": "haier-filtro-frecuencia",
+      "question": "cada cuánto hay que limpiar el filtro",
+      "product": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": true,
+      "covers": true,
+      "invents": false,
+      "judge_reason": "La respuesta del asistente cubre exactamente el hecho de que el filtro debe limpiarse una vez cada dos semanas, igual que la referencia y el manual.",
+      "attempts": 1,
+      "cited_pages": [
+        22
+      ],
+      "key_facts_found": "1/1",
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.604,
+      "pages_retrieved": [
+        22,
+        33,
+        66
+      ],
+      "answer": "El filtro de aire debe limpiarse una vez cada dos semanas.",
+      "latency_ms": 6415
+    },
+    {
+      "id": "haier-filtro-coloquial",
+      "question": "el aire no enfría igual que antes, qué reviso",
+      "product": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": true,
+      "covers": true,
+      "invents": false,
+      "judge_reason": "El asistente cubre el hecho principal de revisar y limpiar el filtro de aire cada dos semanas, y añade detalles adicionales que están respaldados por el texto del manual, sin inventar información no soportada.",
+      "attempts": 1,
+      "cited_pages": [
+        24
+      ],
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.466,
+      "pages_retrieved": [
+        16,
+        22,
+        24,
+        46
+      ],
+      "answer": "Para revisar por qué el aire no enfría igual que antes, verifique lo siguiente:\n- ¿Está sucio el filtro de aire? Normalmente debe limpiarse cada 15 días.\n- ¿Existen obstáculos en la entrada o salida de aire?\n- ¿Se ha configurado la temperatura correctamente?\n- ¿Existen puertas o ventanas abiertas?\n- ¿Penetra la luz solar directamente a través de las ventanas durante el funcionamiento en modo de refrigeración? (Utilice cortinas)\n- ¿Existen demasiadas fuentes de calor o demasiadas personas en la habitación durante la refrigeración?\nNo obstruya ni cubra la rejilla de ventilación del aire acondicionado.\n",
+      "latency_ms": 3815
+    },
+    {
+      "id": "haier-modo-sueno",
+      "question": "para qué sirve el modo sueño",
+      "product": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": true,
+      "covers": true,
+      "invents": false,
+      "judge_reason": "El asistente cubre los hechos del referente explicando que el modo Sueño ajusta automáticamente la temperatura durante la noche y que en modo AUTO adapta el modo de sueño al funcionamiento seleccionado, además de añadir detalles adicionales que están respaldados por el texto del manual.",
+      "attempts": 1,
+      "cited_pages": [
+        17,
+        61
+      ],
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.574,
+      "pages_retrieved": [
+        17,
+        61
+      ],
+      "answer": "El modo SUEÑO sirve para ajustar automáticamente la temperatura durante la noche, de modo que la habitación no esté demasiado fría o caliente mientras duerme. En los modos REFRIGERACIÓN y SECO, una hora después de activar el modo SUEÑO, la temperatura aumenta 1 °C respecto a la configuración inicial, y después de otra hora, aumenta 1 °C más. La unidad sigue funcionando durante 6 horas más y luego se detiene. En el modo CALEFACCIÓN, una hora después de activar el modo SUEÑO, la temperatura baja 2 °C respecto a la configuración inicial, y después de otra hora, baja 2 °C más. Así, el modo SUEÑO ayuda a mantener una temperatura confortable para dormir y ahorra energía al ajustar el funcionamiento del equipo durante la noche.",
+      "latency_ms": 3931
+    },
+    {
+      "id": "haier-temporizador",
+      "question": "cómo programo que se apague solo",
+      "product": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": true,
+      "covers": true,
+      "invents": false,
+      "judge_reason": "El asistente cubre todos los pasos y detalles del uso del temporizador de apagado según el manual y no inventa información adicional.",
+      "attempts": 1,
+      "cited_pages": [
+        18
+      ],
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.457,
+      "pages_retrieved": [
+        16,
+        17,
+        18
+      ],
+      "answer": "Para programar que el equipo se apague solo, siga estos pasos:\n\n1. Con la unidad en marcha, pulse el botón TEMPORIZADOR para cambiar al modo de TEMPORIZADOR.\n2. Seleccione el modo de TEMPORIZADOR DE APAGADO (el indicador correspondiente parpadeará).\n3. Use los botones / para configurar la hora de apagado deseada. Para las primeras 12 horas, el tiempo se ajusta en incrementos de 0,5 horas; después de 12 horas, en incrementos de 1 hora. Puede ajustar cualquier hora dentro de un intervalo de 24 horas.\n4. Después de ajustar el tiempo, presione el botón para confirmar la configuración. El botón APAGADO dejará de parpadear.\n\nPara cancelar la configuración del temporizador, presione el botón del temporizador las veces que sea necesario hasta que desaparezca el indicador del tiempo.",
+      "latency_ms": 4074
+    },
+    {
+      "id": "haier-emergencia",
+      "question": "el mando no funciona, puedo encenderlo de otra forma",
+      "product": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": false,
+      "covers": false,
+      "invents": false,
+      "judge_reason": "The assistant declines to answer, while the reference provides a clear solution using the emergency button on the indoor unit.",
+      "attempts": 2,
+      "cited_pages": [],
+      "key_facts_found": null,
+      "grounded": false,
+      "escalated": true,
+      "best_similarity": 0.51,
+      "pages_retrieved": [
+        15,
+        16,
+        22
+      ],
+      "answer": "I could not find a reliable answer to this in the manual. Passing it to the manufacturer's support team.",
+      "latency_ms": 3852
+    },
+    {
+      "id": "haier-precio",
+      "question": "cuánto cuesta este aire acondicionado",
+      "product": "Haier 76567G",
+      "answerable": false,
+      "intent_expected": "how_to",
+      "intent_actual": "out_of_scope",
+      "recall": null,
+      "correct": true,
+      "covers": true,
+      "invents": false,
+      "judge_reason": "The assistant correctly declined to answer, stating the question is not about the manual's content.",
+      "attempts": 0,
+      "cited_pages": [],
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.0,
+      "pages_retrieved": [],
+      "answer": "This does not look like a question about an appliance manual. Ask about operating, cleaning or troubleshooting your appliance.",
+      "latency_ms": 696
+    },
+    {
+      "id": "haier-consumo-anual",
+      "question": "cuántos kWh consume al año en mi casa",
+      "product": "Haier 76567G",
+      "answerable": false,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": null,
+      "correct": true,
+      "covers": true,
+      "invents": false,
+      "judge_reason": "The assistant correctly declined to answer, stating the manual does not cover this and escalating to support.",
+      "attempts": 0,
+      "cited_pages": [],
+      "key_facts_found": null,
+      "grounded": false,
+      "escalated": true,
+      "best_similarity": 0.335,
+      "pages_retrieved": [
+        13,
+        18,
+        23,
+        40
+      ],
+      "answer": "I could not find a reliable answer to this in the manual. Passing it to the manufacturer's support team.",
+      "latency_ms": 2090
+    },
+    {
+      "id": "haier-donde-comprar",
+      "question": "dónde puedo comprar recambios originales cerca de Barcelona",
+      "product": "Haier 76567G",
+      "answerable": false,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": null,
+      "correct": true,
+      "covers": true,
+      "invents": false,
+      "judge_reason": "The assistant correctly declined to answer and referred the question to support, as the manual does not cover where to buy original spare parts.",
+      "attempts": 0,
+      "cited_pages": [],
+      "key_facts_found": null,
+      "grounded": false,
+      "escalated": true,
+      "best_similarity": 0.24,
+      "pages_retrieved": [
+        15,
+        18,
+        20,
+        23
+      ],
+      "answer": "I could not find a reliable answer to this in the manual. Passing it to the manufacturer's support team.",
+      "latency_ms": 1844
+    }
+  ]
+}

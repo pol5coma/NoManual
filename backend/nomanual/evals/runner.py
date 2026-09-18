@@ -28,8 +28,8 @@ from nomanual.core.config import get_settings
 from nomanual.core.db import SessionLocal
 from nomanual.evals.cases import EvalCase, load_cases
 from nomanual.evals.judge import judge_answer
-from nomanual.models import Product
-from nomanual.searching.search import TOP_K
+from nomanual.models import Chunk, Product
+from nomanual.searching.search import TOP_K, scope_to_product
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,37 @@ async def resolve_products(cases: list[EvalCase]) -> dict[tuple[str, str], Any]:
     return resolved
 
 
+# Enough for the judge to check a claim, short enough not to drown the prompt.
+MAX_SOURCE_CHARS = 6000
+
+
+async def source_text(product_id: Any, pages: set[int]) -> str:
+    """The manual text behind a set of pages, for the judge to check against.
+
+    Given to the judge so it can tell a fuller answer from an invented one. It
+    comes from the case's expected pages plus whatever the system cited: if the
+    system answered correctly from a page the case did not anticipate, judging
+    it against the expected page alone would count a right answer as a
+    fabrication.
+    """
+    if not pages:
+        return ""
+
+    conditions = [Chunk.page_from <= max(pages), Chunk.page_to >= min(pages)]
+    stmt = scope_to_product(
+        select(Chunk.page_from, Chunk.content)
+        .where(*conditions)
+        .order_by(Chunk.ordinal),
+        product_id,
+    )
+
+    async with SessionLocal() as session:
+        rows = (await session.execute(stmt)).all()
+
+    parts = [f"[page {page}]\n{content}" for page, content in rows if page in pages]
+    return "\n\n".join(parts)[:MAX_SOURCE_CHARS]
+
+
 async def run_case(case: EvalCase, product_id: Any) -> dict[str, Any]:
     """Run one question through the full graph and grade it."""
     started = asyncio.get_running_loop().time()
@@ -98,8 +129,17 @@ async def run_case(case: EvalCase, product_id: Any) -> dict[str, Any]:
     expected = set(case.expected_pages)
     recall = bool(expected & retrieved) if expected else None
 
+    # Expected pages first, then the ones the system cited: the judge needs to
+    # see whatever the answer was actually built from.
+    cited = {c.page for c in (state.get("citations") or [])}
+    source = (
+        await source_text(product_id, set(case.expected_pages) | cited)
+        if case.answerable
+        else ""
+    )
+
     verdict = await judge_answer(
-        case.question, answer, case.expected_answer, case.answerable
+        case.question, answer, case.expected_answer, case.answerable, source
     )
 
     # Cheap deterministic signal alongside the judge. When the two disagree,
@@ -116,7 +156,11 @@ async def run_case(case: EvalCase, product_id: Any) -> dict[str, Any]:
         "intent_actual": str(state.get("intent") or ""),
         "recall": recall,
         "correct": verdict.matches,
+        "covers": verdict.covers,
+        "invents": verdict.invents,
         "judge_reason": verdict.reason,
+        "attempts": state.get("attempts", 0),
+        "cited_pages": sorted(cited),
         "key_facts_found": f"{len(facts_found)}/{len(case.key_facts)}"
         if case.key_facts
         else None,
@@ -150,6 +194,10 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
         "unanswerable": len(unanswerable),
         f"recall@{TOP_K}": ratio(scored, "recall"),
         "correctness": ratio(answerable, "correct"),
+        "coverage": ratio(answerable, "covers"),
+        # How often the system states something the manual does not support.
+        # verify cannot catch this: a fabricated claim can carry a real citation.
+        "invention_rate": ratio(answerable, "invents"),
         "abstention": ratio(unanswerable, "correct"),
         "escalation_rate": ratio(answerable, "escalated"),
         "median_latency_ms": sorted(r["latency_ms"] for r in results)[len(results) // 2]
