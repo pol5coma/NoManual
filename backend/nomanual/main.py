@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from nomanual.api import ask, debug, health, manuals, search
+from nomanual.api import ask, debug, health, manuals, products, search
 from nomanual.core.config import get_settings
 from nomanual.core.db import engine
 from nomanual.mcp_server import mcp
@@ -29,10 +30,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# The frontend is a separate origin in development, so the browser needs
+# the API to opt in explicitly.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(health.router)
 app.include_router(manuals.router)
 app.include_router(search.router)
 app.include_router(ask.router)
+app.include_router(products.router)
 
 
 # Mounted on the same app on purpose: the MCP tools call the same

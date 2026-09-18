@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     # question - not for answering. Small and cheap is the point.
     chat_model: str = "gpt-4.1-2025-04-14"
 
+    # Browsers block a request from the Vite dev server (5173) to the API
+    # (8000) unless the API says the origin is allowed. Listed explicitly
+    # rather than "*" because the API will carry credentials later.
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
     # --- Ingest ---
     # pymupdf infers word boundaries from real font metrics, so it glues
     # words together far less often than pdfplumber (0.1% vs 0.7% on a
