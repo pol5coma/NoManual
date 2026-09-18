@@ -13,7 +13,7 @@ from nomanual.core.config import get_settings
 from nomanual.core.db import get_session
 from nomanual.core.storage import compute_checksum, get_storage
 from nomanual.models import PUBLIC_TENANT_ID, Chunk, Manual, Product, manual_product
-from nomanual.models.enums import ManualSource, ManualStatus
+from nomanual.models.enums import ManualSource, ManualStatus, ProductType
 from nomanual.schemas.manual import ManualOut
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,10 @@ CONFLICT_REASON = {
 
 
 async def _get_or_create_product(
-    session: AsyncSession, brand: str, model: str
+    session: AsyncSession,
+    brand: str,
+    model: str,
+    product_type: ProductType = ProductType.OTHER,
 ) -> Product:
     """Find the product for this brand and model, creating it if needed.
 
@@ -54,6 +57,7 @@ async def _get_or_create_product(
             tenant_id=PUBLIC_TENANT_ID,
             brand=brand,
             model=model,
+            type=product_type,
             public_token=uuid4().hex[:22],
         )
         session.add(product)
@@ -123,6 +127,9 @@ async def upload_manual(
     brand: str = Form(..., min_length=1, max_length=120),
     model: str = Form(..., min_length=1, max_length=160),
     title: str | None = Form(None),
+    # Category, so the catalogue can be grouped and filtered. Optional because
+    # a user uploading their own manual should not be blocked by a taxonomy.
+    product_type: ProductType = Form(ProductType.OTHER),
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
 ) -> Manual:
@@ -170,7 +177,7 @@ async def upload_manual(
         # Same file we already stored, but possibly for a different model: a
         # family manual legitimately covers several. Link the product and skip
         # paying for the embeddings a second time.
-        product = await _get_or_create_product(session, brand, model)
+        product = await _get_or_create_product(session, brand, model, product_type)
         await session.execute(
             pg_insert(manual_product)
             .values(manual_id=existing.id, product_id=product.id)
@@ -185,7 +192,7 @@ async def upload_manual(
         await session.refresh(existing)
         return existing
 
-    product = await _get_or_create_product(session, brand, model)
+    product = await _get_or_create_product(session, brand, model, product_type)
 
     key = await asyncio.to_thread(
         get_storage().save, data, file.filename or "manual.pdf"

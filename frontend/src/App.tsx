@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ask, listProducts, type AskResponse, type Product } from "./api";
+import UploadPanel from "./UploadPanel";
 import "./App.css";
 
 // One turn of the conversation. The assistant's turns carry the metadata the
@@ -22,14 +23,20 @@ export default function App() {
 
   const endRef = useRef<HTMLDivElement>(null);
 
-  // Runs once after the first render. The empty dependency array is what makes
-  // it "once": React re-runs an effect whenever a value in that array changes,
-  // and nothing ever changes in an empty one.
-  useEffect(() => {
+  // Declared once and reused: the effect loads the catalogue on mount, and the
+  // upload panel calls the same function when a new manual lands.
+  function refreshProducts() {
     listProducts()
       .then(setProducts)
-      .catch(() => setError("No se pudo cargar el catálogo. ¿Está el backend en marcha?"));
-  }, []);
+      .catch(() =>
+        setError("No se pudo cargar el catálogo. ¿Está el backend en marcha?"),
+      );
+  }
+
+  // The empty dependency array is what makes this run once: React re-runs an
+  // effect whenever a value in that array changes, and nothing changes in an
+  // empty one.
+  useEffect(refreshProducts, []);
 
   // Keeps the newest message in view. Runs after every change to messages.
   useEffect(() => {
@@ -69,18 +76,25 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>NoManual</h1>
-        <select
-          value={productId}
-          onChange={(event) => setProductId(event.target.value)}
-        >
-          <option value="">Elige tu aparato…</option>
-          {products.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.brand} {product.model}
-            </option>
-          ))}
-        </select>
+        <div className="brand">
+          <h1>NoManual</h1>
+          <span>Pregunta a tus manuales</span>
+        </div>
+
+        <div className="controls">
+          <select
+            value={productId}
+            onChange={(event) => setProductId(event.target.value)}
+          >
+            <option value="">Elige tu aparato…</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.brand} {product.model}
+              </option>
+            ))}
+          </select>
+          <UploadPanel onUploaded={refreshProducts} />
+        </div>
       </header>
 
       <main className="chat">

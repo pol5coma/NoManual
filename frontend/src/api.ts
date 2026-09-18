@@ -61,3 +61,53 @@ export function ask(question: string, productId: string): Promise<AskResponse> {
     body: JSON.stringify({ question, product_id: productId }),
   });
 }
+
+export interface ManualUpload {
+  id: string;
+  title: string;
+  source: string;
+  status: string;
+  page_count: number | null;
+  chunk_count: number | null;
+  error: string | null;
+}
+
+// The categories the backend accepts, mirroring ProductType. Kept as a const
+// array so the values and the union type cannot drift apart.
+export const PRODUCT_TYPES = [
+  "washing_machine",
+  "dishwasher",
+  "air_conditioner",
+  "oven",
+  "fridge",
+  "tv",
+  "other",
+] as const;
+
+export type ProductType = (typeof PRODUCT_TYPES)[number];
+
+// Multipart, not JSON: a PDF cannot travel in a JSON body. The browser sets
+// the Content-Type itself, boundary included, so we must not set it here -
+// naming it without the boundary is what makes these uploads fail.
+export async function uploadManual(
+  brand: string,
+  model: string,
+  productType: ProductType,
+  file: File,
+): Promise<ManualUpload> {
+  const form = new FormData();
+  form.append("brand", brand);
+  form.append("model", model);
+  form.append("product_type", productType);
+  form.append("file", file);
+
+  const response = await fetch(`${API_URL}/manuals/upload`, {
+    method: "POST",
+    body: form,
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json() as Promise<ManualUpload>;
+}
