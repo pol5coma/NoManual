@@ -1,0 +1,203 @@
+{
+  "run_at": "2026-09-17T16:29:30+00:00",
+  "config": {
+    "pdf_backend": "pymupdf",
+    "chunk_size": 1200,
+    "chunk_overlap": 150,
+    "embedding_model": "text-embedding-3-small",
+    "embedding_dimensions": 1536,
+    "chat_model": "gpt-4.1-2025-04-14",
+    "top_k": 5,
+    "min_similarity": 0.35,
+    "max_attempts": 2
+  },
+  "summary": {
+    "cases": 8,
+    "answerable": 5,
+    "unanswerable": 3,
+    "recall@5": 0.6,
+    "correctness": 0.4,
+    "abstention": 0.333,
+    "escalation_rate": 0.0,
+    "median_latency_ms": 5221
+  },
+  "cases": [
+    {
+      "id": "haier-filtro-frecuencia",
+      "question": "cada cuánto hay que limpiar el filtro",
+      "manual": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": false,
+      "judge_reason": "El asistente dice que el filtro debe sustituirse cada dos semanas, mientras que la referencia indica que debe limpiarse cada dos semanas; sustituir y limpiar no son lo mismo.",
+      "key_facts_found": "1/1",
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.604,
+      "pages_retrieved": [
+        22,
+        33,
+        45,
+        46
+      ],
+      "answer": "Para el filtro purificador de aire, se recomienda sustituirlo una vez cada dos semanas. Además, durante las temporadas de uso, es recomendable eliminar el polvo con frecuencia utilizando un aspirador o agitándolo ligeramente para mantener su rendimiento.",
+      "latency_ms": 15128
+    },
+    {
+      "id": "haier-filtro-coloquial",
+      "question": "el aire no enfría igual que antes, qué reviso",
+      "manual": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": false,
+      "judge_reason": "El asistente agrega varias recomendaciones y verificaciones que no están en la respuesta de referencia, que solo menciona revisar y limpiar el filtro de aire cada dos semanas.",
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.436,
+      "pages_retrieved": [
+        16,
+        22,
+        24,
+        46
+      ],
+      "answer": "Debe revisar lo siguiente:\n- Si el filtro de aire está sucio, ya que normalmente debe limpiarse cada 15 días.\n- Si hay algún obstáculo en la entrada o salida de aire.\n- Si la temperatura está correctamente configurada.\n- Si hay puertas o ventanas abiertas.\n- Si hay demasiadas fuentes de calor o personas en la habitación durante la refrigeración.\n- Si la luz solar penetra directamente a través de las ventanas durante el funcionamiento en modo de refrigeración (utilice cortinas).\nNo obstruya ni cubra la rejilla de ventilación del aire acondicionado y no coloque los dedos ni ningún otro objeto en la entrada/salida y las lamas móviles.",
+      "latency_ms": 5862
+    },
+    {
+      "id": "haier-modo-sueno",
+      "question": "para qué sirve el modo sueño",
+      "manual": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": true,
+      "correct": true,
+      "judge_reason": "The assistant's answer matches the reference by explaining that Sleep mode automatically adjusts the temperature while sleeping and adapts based on the selected operation mode, though it provides more detail than the reference.",
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.574,
+      "pages_retrieved": [
+        17,
+        61
+      ],
+      "answer": "El modo SUEÑO ajusta automáticamente la temperatura para que sea más confortable durante el sueño. En los modos REFRIGERACIÓN y SECO, una hora después de activar el modo SUEÑO, la temperatura sube 1 °C respecto a la configuración inicial, y tras otra hora sube 1 °C más. Luego, la unidad sigue funcionando durante 6 horas y se detiene, evitando que la habitación se enfríe demasiado mientras duerme. En el modo CALEFACCIÓN, una hora después de activar el modo SUEÑO, la temperatura baja 2 °C respecto a la configuración inicial, y tras otra hora baja 2 °C más, manteniendo la habitación a una temperatura más adecuada para dormir. Así, el modo SUEÑO ayuda a mantener una temperatura confortable y ahorrar energía durante la noche.",
+      "latency_ms": 5221
+    },
+    {
+      "id": "haier-temporizador",
+      "question": "cómo programo que se apague solo",
+      "manual": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": false,
+      "correct": true,
+      "judge_reason": "La respuesta del asistente explica correctamente que se debe usar el temporizador de apagado y cómo configurarlo, coincidiendo con la referencia.",
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.576,
+      "pages_retrieved": [
+        11,
+        36,
+        37,
+        117
+      ],
+      "answer": "Para programar que el televisor se apague solo, puedes utilizar la función de temporizador de desconexión. Ve a \"Configuración General > Administrador del sistema > Hora > Temporizador\" para que el televisor se apague automáticamente después de un tiempo preestablecido (hasta 180 minutos). También puedes usar \"Tempor. apagado\" en el mismo menú para que el televisor se apague automáticamente a una hora determinada, siempre que el reloj esté configurado.",
+      "latency_ms": 4606
+    },
+    {
+      "id": "haier-emergencia",
+      "question": "el mando no funciona, puedo encenderlo de otra forma",
+      "manual": "Haier 76567G",
+      "answerable": true,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": false,
+      "correct": false,
+      "judge_reason": "El asistente dice que no hay otra forma de encender el aparato sin el mando, mientras que la referencia indica que sí se puede usar el botón de uso de emergencia en la unidad interior.",
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.539,
+      "pages_retrieved": [
+        15,
+        143,
+        144
+      ],
+      "answer": "El manual no indica otra forma de encender el aparato si el mando a distancia no funciona. Solo se mencionan soluciones para intentar que el mando vuelva a funcionar, como cambiar las pilas, restablecer el mando o asegurarse de que no haya obstáculos entre el mando y el receptor.",
+      "latency_ms": 5527
+    },
+    {
+      "id": "haier-precio",
+      "question": "cuánto cuesta este aire acondicionado",
+      "manual": "Haier 76567G",
+      "answerable": false,
+      "intent_expected": "how_to",
+      "intent_actual": "out_of_scope",
+      "recall": null,
+      "correct": true,
+      "judge_reason": "The assistant correctly declined to answer, indicating the question is not covered by the manual.",
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.0,
+      "pages_retrieved": [],
+      "answer": "This does not look like a question about an appliance manual. Ask about operating, cleaning or troubleshooting your appliance.",
+      "latency_ms": 808
+    },
+    {
+      "id": "haier-consumo-anual",
+      "question": "cuántos kWh consume al año en mi casa",
+      "manual": "Haier 76567G",
+      "answerable": false,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": null,
+      "correct": false,
+      "judge_reason": "The assistant provided specific annual kWh consumption values, which are not covered by the manual and should have declined to answer or referred to support.",
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.435,
+      "pages_retrieved": [
+        17,
+        38,
+        76,
+        158
+      ],
+      "answer": "El consumo anual estimado para un hogar de cuatro personas, siempre usando el secador (200 ciclos), es de 1086 kWh para el modelo HWD80B14979, 1360 kWh para el modelo HWD100B14979 y 1580 kWh para el modelo HWD120B14979. Si nunca se usa el secador (200 ciclos), el consumo anual estimado es de 182 kWh, 180 kWh y 230 kWh respectivamente.",
+      "latency_ms": 4925
+    },
+    {
+      "id": "haier-donde-comprar",
+      "question": "dónde puedo comprar recambios originales cerca de Barcelona",
+      "manual": "Haier 76567G",
+      "answerable": false,
+      "intent_expected": "how_to",
+      "intent_actual": "how_to",
+      "recall": null,
+      "correct": false,
+      "judge_reason": "El asistente proporcionó una respuesta detallada en lugar de indicar que el manual no cubre esta información o derivar la consulta a soporte.",
+      "key_facts_found": null,
+      "grounded": true,
+      "escalated": false,
+      "best_similarity": 0.392,
+      "pages_retrieved": [
+        32,
+        40,
+        47,
+        55,
+        58
+      ],
+      "answer": "Puede adquirir piezas de repuesto originales relevantes para el funcionamiento del aparato a través del Servicio de Asistencia Técnica. Para obtener información detallada y los datos de contacto, consulte el directorio adjunto o la página web indicada en el manual. También puede contactar con su distribuidor local o el área de Servicio y Soporte en www.haier.com, donde encontrará números de teléfono y podrá activar la solicitud de servicios. En el caso de Haier Iberia SL, la dirección postal es Pg (información incompleta en el extracto).",
+      "latency_ms": 4728
+    }
+  ]
+}

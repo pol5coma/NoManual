@@ -1,0 +1,98 @@
+# Haier 76567G air conditioner - multilingual manual, 130 pages.
+#
+# Questions are written the way a user would write them, not by copying the
+# manual's wording. Reusing its vocabulary would make retrieval artificially
+# easy, and recall would measure the instrument rather than the system.
+#
+# expected_pages are PDF pages, not chunk ids: a chunk id is minted on every
+# ingestion, so the golden set would break exactly when the chunker changes.
+
+- id: haier-filtro-frecuencia
+  question: "cada cuánto hay que limpiar el filtro"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: true
+  expected_pages: [22]
+  expected_answer: "El filtro debe limpiarse una vez cada dos semanas."
+  key_facts: ["dos semanas"]
+
+- id: haier-filtro-coloquial
+  question: "el aire no enfría igual que antes, qué reviso"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: true
+  expected_pages: [22, 23]
+  expected_answer: >
+    Conviene revisar y limpiar el filtro de aire, que debe limpiarse cada dos
+    semanas; un filtro sucio reduce el rendimiento.
+  key_facts: []
+
+- id: haier-modo-sueno
+  question: "para qué sirve el modo sueño"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: true
+  expected_pages: [17]
+  expected_answer: >
+    El modo Sueño ajusta automáticamente la temperatura mientras se duerme;
+    en modo AUTO la unidad adapta el modo de sueño al modo de funcionamiento
+    seleccionado.
+  key_facts: []
+
+- id: haier-temporizador
+  question: "cómo programo que se apague solo"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: true
+  expected_pages: [18]
+  expected_answer: >
+    Se usa el temporizador de apagado: se pulsa el botón del temporizador para
+    fijar la hora de apagado y se confirma la configuración.
+  key_facts: []
+
+- id: haier-emergencia
+  question: "el mando no funciona, puedo encenderlo de otra forma"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: true
+  expected_pages: [16]
+  expected_answer: >
+    Sí, mediante el botón de uso de emergencia de la unidad interior. Al
+    pulsarlo suena un pitido que indica que el modo se ha activado.
+  key_facts: []
+
+# --- Questions the manual cannot answer ---
+# Without these, a system that invents a plausible answer for everything would
+# score well: nothing would be measuring its honesty.
+
+- id: haier-precio
+  question: "cuánto cuesta este aire acondicionado"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: false
+  expected_pages: []
+  expected_answer: null
+
+- id: haier-consumo-anual
+  question: "cuántos kWh consume al año en mi casa"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: false
+  expected_pages: []
+  expected_answer: null
+
+- id: haier-donde-comprar
+  question: "dónde puedo comprar recambios originales cerca de Barcelona"
+  brand: "Haier"
+  model: "76567G"
+  intent: how_to
+  answerable: false
+  expected_pages: []
+  expected_answer: null
