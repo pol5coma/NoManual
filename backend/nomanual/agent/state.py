@@ -64,6 +64,12 @@ class AnswerState(TypedDict, total=False):
 
     question: str
 
+    # The appliance the user is asking about, chosen before the conversation
+    # starts - by QR, by picking brand and model, or by uploading a manual.
+    # Retrieval is scoped to it, so a question about an oven cannot be
+    # answered from a washing machine's manual.
+    product_id: UUID | None
+
     # Set when the cheap pre-screen rejected the question outright.
     rejection: str | None
 

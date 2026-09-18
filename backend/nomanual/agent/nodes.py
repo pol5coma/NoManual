@@ -125,10 +125,11 @@ async def retrieve(state: AnswerState) -> AnswerState:
     if translated.casefold() == question.casefold():
         translated = None
 
-    hits = await hybrid_search(question, translated)
+    hits = await hybrid_search(question, translated, product_id=state.get("product_id"))
     logger.info(
-        "Retrieved %d chunks, best similarity %.3f",
+        "Retrieved %d chunks for product %s, best similarity %.3f",
         len(hits),
+        state.get("product_id"),
         hits[0].similarity if hits else 0.0,
     )
     return {"hits": hits, "translated_query": translated}

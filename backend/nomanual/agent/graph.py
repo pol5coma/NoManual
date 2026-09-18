@@ -26,6 +26,8 @@ The loop is what makes this a graph rather than a chain: verify can send the
 flow backwards. Everything else would be a sequence of function calls.
 """
 
+from uuid import UUID
+
 from langgraph.graph import END, StateGraph
 
 from nomanual.agent.nodes import (
@@ -126,6 +128,13 @@ def build_graph():
 answer_graph = build_graph()
 
 
-async def answer_question(question: str) -> AnswerState:
-    """Run a question through the graph and return the final state."""
-    return await answer_graph.ainvoke({"question": question, "attempts": 0})
+async def answer_question(question: str, product_id: UUID | None = None) -> AnswerState:
+    """Run a question through the graph and return the final state.
+
+    product_id scopes retrieval to one appliance. It is optional here so the
+    graph stays testable, but the product is chosen before the conversation
+    begins, so in the application it is always present.
+    """
+    return await answer_graph.ainvoke(
+        {"question": question, "product_id": product_id, "attempts": 0}
+    )

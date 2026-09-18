@@ -2,11 +2,12 @@ import logging
 import time
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nomanual.agent.graph import answer_question
 from nomanual.core.db import get_session
-from nomanual.models import QueryLog
+from nomanual.models import Product, QueryLog
 from nomanual.models.enums import QueryIntent
 from nomanual.schemas.ask import AskRequest, AskResponse
 
@@ -26,8 +27,16 @@ async def ask(
     their documentation does not cover - so the unanswered ones matter as much
     as the rest.
     """
+    product_id = item.product_id
+    if product_id is None and item.product_token:
+        # The QR carries a token rather than an id, so it can be printed on the
+        # appliance without exposing an internal identifier.
+        product_id = await session.scalar(
+            select(Product.id).where(Product.public_token == item.product_token)
+        )
+
     started = time.perf_counter()
-    state = await answer_question(item.question)
+    state = await answer_question(item.question, product_id=product_id)
     latency_ms = int((time.perf_counter() - started) * 1000)
 
     citations = state.get("citations") or []

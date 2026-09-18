@@ -1,6 +1,6 @@
 """MCP server: the retrieval pipeline exposed to external agents.
 
-This is the one place in the project where a real agent is involved. Claude, 
+This is the one place in the project where a real agent is involved. Claude,
 or a manufacturer's own support bot, decides when to call
 these tools, whether to rephrase and search again, and how to combine the
 result with its own sources. We only supply capabilities.
@@ -22,13 +22,30 @@ from sqlalchemy import func, select
 
 from nomanual.agent.graph import answer_question
 from nomanual.core.db import SessionLocal
-from nomanual.models import Chunk, Manual
+from nomanual.models import Chunk, Manual, Product
 from nomanual.searching.search import PIVOT_LANGUAGE, hybrid_search
 from nomanual.searching.translate import translate_query
 
 logger = logging.getLogger(__name__)
 
 mcp = MCPServer("nomanual")
+
+
+async def _resolve_product(brand: str | None, model: str | None):
+    """Find the product an agent named, so retrieval can be scoped to it.
+
+    Without a product every question competes against every manual indexed, and
+    a question about an oven can be answered from a washing machine.
+    """
+    if not (brand and model):
+        return None
+
+    async with SessionLocal() as session:
+        return await session.scalar(
+            select(Product.id).where(
+                Product.brand.ilike(brand), Product.model.ilike(model)
+            )
+        )
 
 
 @mcp.tool(
@@ -40,6 +57,8 @@ mcp = MCPServer("nomanual")
 )
 async def search_manual(
     query: Annotated[str, Field(description="What to look for, in any language.")],
+    brand: Annotated[str | None, Field(description="Appliance brand.")] = None,
+    model: Annotated[str | None, Field(description="Appliance model.")] = None,
     limit: Annotated[int, Field(description="How many extracts.", ge=1, le=20)] = 5,
 ) -> list[dict]:
     """Raw retrieval: hybrid search, no generation.
@@ -48,11 +67,13 @@ async def search_manual(
     control - it may want to combine them with its own context, or quote them
     directly.
     """
+    product_id = await _resolve_product(brand, model)
+
     translated = await translate_query(query, PIVOT_LANGUAGE)
     if translated.casefold() == query.casefold():
         translated = None
 
-    hits = await hybrid_search(query, translated, top_k=limit)
+    hits = await hybrid_search(query, translated, top_k=limit, product_id=product_id)
     logger.info("MCP search_manual(%r) -> %d hits", query, len(hits))
 
     return [
@@ -76,6 +97,8 @@ async def search_manual(
 )
 async def ask_manual(
     question: Annotated[str, Field(description="The user's question.")],
+    brand: Annotated[str | None, Field(description="Appliance brand.")] = None,
+    model: Annotated[str | None, Field(description="Appliance model.")] = None,
 ) -> dict:
     """The full answering workflow, exposed as a single tool.
 
@@ -83,7 +106,8 @@ async def ask_manual(
     generation and the grounding check, and returns something already verified.
     The calling agent chooses which it wants.
     """
-    state = await answer_question(question)
+    product_id = await _resolve_product(brand, model)
+    state = await answer_question(question, product_id=product_id)
     logger.info(
         "MCP ask_manual(%r) -> intent=%s grounded=%s",
         question,

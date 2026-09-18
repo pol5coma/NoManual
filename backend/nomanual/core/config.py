@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
-    """Configuración de NoManual, validada al arrancar.
+    """NoManual configuration, validated at startup.
 
     Los nombres en minúscula se mapean solos a variables de entorno en
     mayúscula: `database_url` lee DATABASE_URL.

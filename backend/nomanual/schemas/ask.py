@@ -9,8 +9,10 @@ from nomanual.agent.state import Citation
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
-    # Reserved for the QR flow: the token identifies which appliance the user
-    # is standing in front of, so retrieval can be scoped to its manuals.
+
+    # The appliance, chosen before the conversation starts. Either works:
+    # product_id from a picker, or the token a QR code carries.
+    product_id: UUID | None = None
     product_token: str | None = None
 
 

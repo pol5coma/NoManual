@@ -17,11 +17,13 @@ which product the user means.
 
 import re
 from collections import defaultdict
+from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from nomanual.core.db import SessionLocal
 from nomanual.ingestion.embeddings import embeddings
+from nomanual.models import manual_product
 from nomanual.models.chunk import Chunk
 from nomanual.schemas.searching import SearchHit
 
@@ -50,17 +52,50 @@ async def get_embeddings(text: str) -> list[float]:
     return await embeddings.aembed_query(text)
 
 
-async def query_texts(vectors: list[float], top_k: int = CANDIDATES) -> list[SearchHit]:
+def scope_to_product(stmt, product_id: UUID | None):
+    """Restrict a chunk query to one appliance.
+
+    Two filters, and they are not the same thing:
+
+    1. Does this chunk belong to a manual covering the product? Chunks hang off
+       a manual, and a family manual covers a dozen models, so the link goes
+       through manual_product.
+
+    2. Does it apply to this specific model? A family manual states things like
+       "only on models with a digital display", and applies_to records which
+       models a passage covers. NULL means it covers every model the manual
+       does, so the filter works before the classifier ever runs.
+
+    Without the first, a question about an oven competes against every chunk of
+    every washing machine indexed. Measured on six manuals, that was enough to
+    let the wrong appliance answer.
+    """
+    if product_id is None:
+        return stmt
+
+    return stmt.where(
+        Chunk.manual_id.in_(
+            select(manual_product.c.manual_id).where(
+                manual_product.c.product_id == product_id
+            )
+        ),
+        or_(Chunk.applies_to.is_(None), Chunk.applies_to.any(product_id)),
+    )
+
+
+async def query_texts(
+    vectors: list[float],
+    top_k: int = CANDIDATES,
+    product_id: UUID | None = None,
+) -> list[SearchHit]:
     """Nearest chunks to a vector, closest first."""
     async with SessionLocal() as session:
         distance = Chunk.embedding.cosine_distance(vectors)
-        rows = (
-            await session.execute(
-                select(Chunk, distance.label("distance"))
-                .order_by(distance)
-                .limit(top_k)
-            )
-        ).all()
+        stmt = scope_to_product(
+            select(Chunk, distance.label("distance")).order_by(distance).limit(top_k),
+            product_id,
+        )
+        rows = (await session.execute(stmt)).all()
 
     return [_to_hit(chunk, distance) for chunk, distance in rows]
 
@@ -80,7 +115,10 @@ def _to_hit(chunk: Chunk, distance: float) -> SearchHit:
 
 
 async def lexical_search(
-    query: str, vectors: list[float], top_k: int = CANDIDATES
+    query: str,
+    vectors: list[float],
+    top_k: int = CANDIDATES,
+    product_id: UUID | None = None,
 ) -> list[SearchHit]:
     """Full-text search over content_tsv, for what embeddings cannot see.
 
@@ -105,14 +143,14 @@ async def lexical_search(
     distance = Chunk.embedding.cosine_distance(vectors)
 
     async with SessionLocal() as session:
-        rows = (
-            await session.execute(
-                select(Chunk, distance.label("distance"))
-                .where(Chunk.content_tsv.op("@@")(tsquery))
-                .order_by(func.ts_rank(Chunk.content_tsv, tsquery).desc())
-                .limit(top_k)
-            )
-        ).all()
+        stmt = scope_to_product(
+            select(Chunk, distance.label("distance"))
+            .where(Chunk.content_tsv.op("@@")(tsquery))
+            .order_by(func.ts_rank(Chunk.content_tsv, tsquery).desc())
+            .limit(top_k),
+            product_id,
+        )
+        rows = (await session.execute(stmt)).all()
 
     # The cosine distance is carried along even though ranking is lexical, so
     # every hit reports similarity on the same scale no matter which strategy
@@ -183,7 +221,10 @@ def hits_to_text(hits: list[SearchHit]) -> str:
 
 
 async def hybrid_search(
-    query: str, translated: str | None = None, top_k: int = TOP_K
+    query: str,
+    translated: str | None = None,
+    top_k: int = TOP_K,
+    product_id: UUID | None = None,
 ) -> list[SearchHit]:
     """Search semantically and lexically, then fuse the rankings.
 
@@ -193,11 +234,13 @@ async def hybrid_search(
     """
     vectors = await get_embeddings(query)
     rankings = [
-        await query_texts(vectors),
-        await lexical_search(query, vectors),
+        await query_texts(vectors, product_id=product_id),
+        await lexical_search(query, vectors, product_id=product_id),
     ]
 
     if translated:
-        rankings.append(await query_texts(await get_embeddings(translated)))
+        rankings.append(
+            await query_texts(await get_embeddings(translated), product_id=product_id)
+        )
 
     return reciprocal_rank_fusion(*rankings, top_k=top_k)
