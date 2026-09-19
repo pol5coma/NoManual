@@ -10,8 +10,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 class Settings(BaseSettings):
     """NoManual configuration, validated at startup.
 
-    Los nombres en minúscula se mapean solos a variables de entorno en
-    mayúscula: `database_url` lee DATABASE_URL.
+    Lowercase field names map to uppercase environment variables on their
+    own: `database_url` reads DATABASE_URL.
     """
 
     model_config = SettingsConfigDict(
@@ -24,12 +24,12 @@ class Settings(BaseSettings):
     database_url: str
     redis_url: str
     openai_api_key: str
-    gemini_api_key: str
-    anthropic_api_key: str
-    kimi_api_key: str
+    gemini_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    kimi_api_key: str | None = None
 
     # Mounts /debug, which exposes raw file contents. Never on in production.
-    debug_endpoints: bool = True
+    debug_endpoints: bool = False
 
     # Used for short utility calls - translating a query, classifying a
     # question - not for answering. Small and cheap is the point.
@@ -65,7 +65,7 @@ class Settings(BaseSettings):
 
     # --- Uploads ---
     storage_dir: Path = PROJECT_ROOT / Path("uploads")
-    max_upload_bytes: int = 100 * 1024 * 1024  # 50 MB
+    max_upload_bytes: int = 100 * 1024 * 1024  # 100 MB
 
     # --- Monitoring ---
     langfuse_public_key: str | None = None
