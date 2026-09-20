@@ -178,18 +178,29 @@ uv run python -m nomanual.evals.validate    # judge consistency
 
 ## Getting started
 
-Requirements: Python 3.12+, [uv](https://docs.astral.sh/uv/), Docker, Node 20+,
-an OpenAI API key.
+Requirements: Docker, and an OpenAI API key.
 
 ```bash
-cp .env.example .env              # database, Redis and OpenAI settings
+cp .env.example .env              # fill in OPENAI_API_KEY
+docker compose up --build
+```
+
+That is the whole application: PostgreSQL with pgvector, Redis, the migrations,
+the API on http://localhost:8000, the Celery worker and the web app on
+http://localhost:5174. Migrations run in their own one-shot container, so
+exactly one process upgrades the schema and nothing starts against a database
+that failed to migrate.
+
+### Developing
+
+The API and the worker reload on every change when they run on the host, with
+only the infrastructure in Docker. Needs Python 3.12+, [uv](https://docs.astral.sh/uv/)
+and Node 20+:
+
+```bash
 uv sync
-docker compose up -d --wait       # PostgreSQL (pgvector) + Redis
-uv run alembic upgrade head       # schema + public tenant
-
-./run.sh                          # API on :8000 + Celery worker
-
-cd frontend && npm install && npm run dev   # web app on http://localhost:5174
+./run.sh                                    # db + redis in Docker, API + worker local
+cd frontend && npm install && npm run dev   # http://localhost:5174
 ```
 
 Connect Claude Code to the MCP server:
@@ -198,7 +209,9 @@ Connect Claude Code to the MCP server:
 claude mcp add --transport http nomanual http://127.0.0.1:8000/mcp/
 ```
 
-Run the tests:
+Run the tests. They use a separate `nomanual_test` database on the same
+PostgreSQL, created and migrated by the suite itself, so the containers above
+have to be running:
 
 ```bash
 uv run pytest

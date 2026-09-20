@@ -10,8 +10,11 @@ export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Only the infrastructure runs in Docker here. The API and the worker run on
+# the host so they reload on every edit; `docker compose up` runs the whole
+# application in containers instead.
 echo "==> Postgres and Redis"
-docker compose up -d --wait
+docker compose up -d --wait db redis
 
 echo "==> API on http://localhost:8000"
 uv run uvicorn nomanual.main:app --reload &

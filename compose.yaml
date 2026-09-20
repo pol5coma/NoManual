@@ -1,23 +1,31 @@
 name: nomanual
 
+# `docker compose up` brings up the whole application: database, queue,
+# migrations, API, worker and web app.
+#
+# For development, ./run.sh starts only db and redis and runs the API and the
+# worker on the host, where they reload on every change.
+
 services:
-  db: 
+  db:
     image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?Missing POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Missing POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:?Missing POSTGRES_DB in .env}
-      
+
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nomanual -d nomanual"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 5
       start_period: 30s
+
   redis:
     image: redis:7-alpine
     ports:
@@ -28,5 +36,77 @@ services:
       timeout: 3s
       retries: 10
 
+  # Runs once and exits. The API and the worker wait for it to finish
+  # successfully, so exactly one process ever applies the migrations and
+  # nothing starts against a schema that failed to upgrade.
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      <<: &backend_env
+        DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+        REDIS_URL: redis://redis:6379/0
+        OPENAI_API_KEY: ${OPENAI_API_KEY:?Missing OPENAI_API_KEY in .env}
+        # Inside the compose network the browser still talks to the API through
+        # the host, so the allowed origin is the published frontend port.
+        CORS_ORIGINS: '["http://localhost:5174","http://127.0.0.1:5174"]'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment: *backend_env
+    volumes:
+      # The API writes the uploaded PDF and the worker reads it: without a
+      # shared volume the file would only exist in one container.
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    build: .
+    command:
+      ["celery", "-A", "nomanual.worker.celery_app", "worker", "--loglevel=info"]
+    environment: *backend_env
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the bundle at build time: the browser runs outside the
+        # compose network and reaches the API on the host's port.
+        VITE_API_URL: http://127.0.0.1:8000
+    ports:
+      - "5174:80"
+    depends_on:
+      api:
+        condition: service_started
+
 volumes:
   pgdata:
+  uploads:
