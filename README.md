@@ -31,6 +31,10 @@ NoManual keeps the manual as the source of truth and makes it answer back.
   section is often not in the user's language. Questions are searched both as
   asked and translated to English, so a question in Spanish finds the answer in
   the English section, and the reply comes back in the user's language.
+- **It remembers the conversation.** "And how long does it take?" is a clear
+  question to a person and an empty one to a search engine. Follow-ups are
+  rewritten into standalone questions before retrieval, so the thread works the
+  way people actually ask.
 - **Product-aware.** Questions are scoped to one product and only search its
   manuals. One manual can cover a whole product family, so a single upload
   serves every model in it.
@@ -47,26 +51,29 @@ NoManual keeps the manual as the source of truth and makes it answer back.
 ## How it works
 
 ```
-                 ┌──────────────┐     ┌──────────────┐
-  React (Vite) ──▶   FastAPI    │◀────│  MCP server  │◀── Claude / MCP clients
-                 │  /ask /search│     │   (/mcp/)    │
-                 │  /manuals    │     └──────────────┘
-                 └──────┬───────┘
-          upload        │ question
-            │           ▼
-            │    ┌─────────────────── LangGraph workflow ───────────────────┐
-            │    │ screen → route → retrieve → generate → verify ─┬─▶ answer │
-            │    │            │                     ▲             │          │
-            │    │            └─▶ small talk        └── retry ────┤          │
-            │    │                refuse                          └─▶ escalate│
-            │    └──────────────────────────┬───────────────────────────────┘
-            ▼                               │ hybrid search, scoped to product
-   ┌─────────────────┐              ┌───────▼────────────────────────┐
-   │ Celery + Redis  │── chunks ───▶│ PostgreSQL + pgvector          │
-   │ extract, clean, │  embeddings  │ tenants, products, manuals,    │
-   │ chunk, embed    │              │ chunks (vector + tsvector),    │
-   └─────────────────┘              │ query logs, escalations        │
-                                    └────────────────────────────────┘
+                 ┌───────────────┐     ┌──────────────┐
+  React (Vite) ──▶   FastAPI     │◀────│  MCP server  │◀── Claude / MCP clients
+                 │  /ask /search │     │   (/mcp/)    │
+                 │  /manuals     │     └──────────────┘
+                 └───────┬───────┘
+        upload           │ question
+            │            ▼
+            │    ┌───────────────── LangGraph workflow ─────────────────┐
+            │    │  screen → condense → route → retrieve → generate     │
+            │    │              ▲           │                   │       │
+            │    │       conversation       └─▶ small talk      ▼       │
+            │    │         history              refuse        verify    │
+            │    │                                              │       │
+            │    │                          answer ◀── ok ──────┤       │
+            │    │                        escalate ◀── failed ──┘       │
+            │    └──────────────────────┬───────────────────────────────┘
+            ▼                            │ hybrid search, scoped to product
+   ┌─────────────────┐           ┌───────▼────────────────────────┐
+   │ Celery + Redis  │── chunks ─▶ PostgreSQL + pgvector          │
+   │ extract, clean, │ embeddings│ tenants, products, manuals,    │
+   │ chunk, embed    │           │ chunks (vector + tsvector),    │
+   └─────────────────┘           │ conversations, query logs      │
+                                 └────────────────────────────────┘
 ```
 
 ### 1. Ingestion
@@ -101,17 +108,34 @@ A LangGraph **workflow** — not a free-running agent — handles every question
 
 1. **Screen** — cheap deterministic guardrails (length, prompt-injection
    patterns) before any model call.
-2. **Route** — classify the intent (error code, how-to, safety, small talk,
+2. **Condense** — rewrite a follow-up into a question that stands on its own,
+   using the recent turns and the conversation's notes. Skipped when there is
+   no history, which is most messages.
+3. **Route** — classify the intent (error code, how-to, safety, small talk,
    out of scope) and send it down the right path.
-3. **Retrieve** — hybrid search, with a minimum relevance threshold.
-4. **Generate** — structured output: the answer plus the chunks it cites.
-5. **Verify** — a deterministic check that every citation points to a chunk
+4. **Retrieve** — hybrid search, with a minimum relevance threshold.
+5. **Generate** — structured output: the answer plus the chunks it cites.
+6. **Verify** — a deterministic check that every citation points to a chunk
    that was actually retrieved. A failed check triggers one retry with feedback;
    a second failure escalates the question instead of returning a guess.
 
 The steps are known in advance and every answer must be checked, so a fixed
 graph is cheaper, more predictable and easier to test than an agent picking its
 own tools.
+
+### Conversation memory
+
+A thread belongs to one appliance, because retrieval is scoped to one
+appliance. Each turn stores the question and the answer with its citations, so
+reloading the page rebuilds the conversation, sources included.
+
+The model sees the last few turns verbatim plus a set of running notes - the
+goal, what has been tried, how it went, and the facts the user gave along the
+way. The notes are structured fields rather than prose, and they are only
+written when a conversation outgrows its window: while everything still fits,
+the transcript is a better summary than any model could produce, and paying for
+one on every message would double the cost of the short conversations that make
+up most of the traffic.
 
 ### Why PostgreSQL for vectors
 
