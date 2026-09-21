@@ -82,3 +82,8 @@ extend-immutable-calls = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# One event loop for the whole run. The engine and its connection pool are
+# created at import time, and a connection opened in one loop cannot be reused
+# from another - which is exactly what a loop per test would do.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
