@@ -374,3 +374,83 @@ async def test_a_conversation_can_be_read_back(session, client, fake_answer):
     assert [m["role"] for m in body["messages"]] == ["user", "assistant"]
     assert body["messages"][0]["content"] == "cada cuánto limpio el filtro"
     assert body["product_id"] == str(product.id)
+
+
+# --- The sidebar ---------------------------------------------------------------
+
+
+async def test_threads_are_listed_newest_activity_first(session, client, fake_answer):
+    product = await make_product(session)
+    await session.commit()
+
+    older = await client.post(
+        "/ask",
+        json={"question": "cómo pongo el temporizador", "product_id": str(product.id)},
+    )
+    newer = await client.post(
+        "/ask",
+        json={
+            "question": "cada cuánto limpio el filtro",
+            "product_id": str(product.id),
+        },
+    )
+
+    response = await client.get(
+        "/conversations", params={"product_id": str(product.id)}
+    )
+
+    rows = response.json()
+    assert [row["id"] for row in rows] == [
+        newer.json()["conversation_id"],
+        older.json()["conversation_id"],
+    ]
+    # The title comes from the first question, free of any model call.
+    assert rows[0]["title"] == "cada cuánto limpio el filtro"
+    assert rows[0]["message_count"] == 2
+    assert rows[0]["last_message_at"] is not None
+
+
+async def test_a_thread_is_only_listed_for_its_own_appliance(
+    session, client, fake_answer
+):
+    oven = await make_product(session, brand="Balay", model="3HB4331X0")
+    aircon = await make_product(session, brand="Haier", model="AS09FBAHRA")
+    await session.commit()
+
+    await client.post(
+        "/ask", json={"question": "cómo precaliento", "product_id": str(oven.id)}
+    )
+
+    response = await client.get("/conversations", params={"product_id": str(aircon.id)})
+
+    assert response.json() == []
+
+
+async def test_a_thread_can_be_deleted_with_its_messages(session, client, fake_answer):
+    product = await make_product(session)
+    await session.commit()
+
+    asked = await client.post(
+        "/ask",
+        json={
+            "question": "cada cuánto limpio el filtro",
+            "product_id": str(product.id),
+        },
+    )
+    conversation_id = asked.json()["conversation_id"]
+
+    response = await client.delete(f"/conversations/{conversation_id}")
+
+    assert response.status_code == 204
+    session.expire_all()
+    assert await session.scalar(select(func.count()).select_from(Conversation)) == 0
+    # ON DELETE CASCADE, checked against the database rather than assumed.
+    assert await session.scalar(select(func.count()).select_from(Message)) == 0
+
+
+async def test_deleting_an_unknown_thread_is_a_404(client):
+    from uuid import uuid4
+
+    response = await client.delete(f"/conversations/{uuid4()}")
+
+    assert response.status_code == 404
