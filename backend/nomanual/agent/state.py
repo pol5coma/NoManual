@@ -64,6 +64,17 @@ class AnswerState(TypedDict, total=False):
 
     question: str
 
+    # The question as it will be searched for. A follow-up like "and how long
+    # does it take?" is rewritten into a standalone question first: retrieval
+    # only ever sees this string, and a vector built from three pronouns
+    # matches nothing in the manual.
+    search_question: str | None
+
+    # The recent turns as (role, content), oldest first, and the running notes
+    # for everything older than the window.
+    history: list[tuple[str, str]]
+    summary: dict | None
+
     # The appliance the user is asking about, chosen before the conversation
     # starts - by QR, by picking brand and model, or by uploading a manual.
     # Retrieval is scoped to it, so a question about an oven cannot be

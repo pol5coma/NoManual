@@ -43,6 +43,26 @@ out_of_scope not about an appliance or its manual at all
 
 When a question could be how_to or safety, choose safety."""
 
+# The rewrite that makes a conversation work. "And how long does it take?" is a
+# perfectly clear question for a human and an empty one for a search engine:
+# the vector carries pronouns and nothing else, and the lexical side has no term
+# to match. Rewriting happens before retrieval because by the time the generator
+# runs, the wrong chunks have already been chosen.
+_CONDENSE_PROMPT = """You rewrite a follow-up message into a question that \
+stands on its own.
+
+You get the earlier conversation and the latest message. Return the latest \
+message rewritten so it can be understood with no other context.
+
+Rules:
+- Replace pronouns and references with what they refer to ("it", "that mode", \
+"the one you said").
+- Keep the user's language, wording and level of detail. This is not a summary \
+and not an improvement.
+- Keep error codes, model numbers and button labels exactly as written.
+- If the message already stands on its own, repeat it unchanged.
+- Return the question only, with no preamble."""
+
 _ANSWER_PROMPT = """You answer questions about household appliances using only \
 the manual extracts provided.
 
@@ -105,22 +125,71 @@ def screen(state: AnswerState) -> AnswerState:
     }
 
 
+def _format_history(state: AnswerState) -> str:
+    """The conversation so far, as the model reads it."""
+    lines = []
+    if state.get("summary"):
+        lines.append(f"Notes on the conversation so far: {state['summary']}")
+
+    lines += [f"{role}: {content}" for role, content in state.get("history") or []]
+    return "\n".join(lines)
+
+
+async def condense(state: AnswerState) -> AnswerState:
+    """Turn a follow-up into a question that can be searched for on its own.
+
+    Skipped entirely on the first message of a conversation, which is most of
+    them: with no history there is nothing to resolve, and paying for a model
+    call to copy a string is waste.
+
+    On failure the original question is used. A worse search is recoverable;
+    an exception is not.
+    """
+    question = state["question"]
+    if not state.get("history") and not state.get("summary"):
+        return {"search_question": question}
+
+    try:
+        response = await _model.ainvoke(
+            [
+                ("system", _CONDENSE_PROMPT),
+                ("human", f"{_format_history(state)}\n\nLatest message: {question}"),
+            ]
+        )
+        rewritten = response.content.strip()
+    except Exception:
+        logger.exception("Could not condense %r", question)
+        return {"search_question": question}
+
+    if not rewritten:
+        return {"search_question": question}
+
+    logger.info("Condensed %r -> %r", question, rewritten)
+    return {"search_question": rewritten}
+
+
+def _searchable(state: AnswerState) -> str:
+    """What the rest of the graph works with: the rewrite, or the raw question."""
+    return state.get("search_question") or state["question"]
+
+
 async def route(state: AnswerState) -> AnswerState:
     """Classify the question before spending anything on retrieval.
 
     Structured output rather than free text: the branch depends on this value,
     and parsing prose to decide control flow is how workflows break.
     """
+    question = _searchable(state)
     result = await _model.with_structured_output(Routing).ainvoke(
-        [("system", _ROUTER_PROMPT), ("human", state["question"])]
+        [("system", _ROUTER_PROMPT), ("human", question)]
     )
-    logger.info("Routed %r as %s: %s", state["question"], result.intent, result.reason)
+    logger.info("Routed %r as %s: %s", question, result.intent, result.reason)
     return {"intent": result.intent, "reason": result.reason}
 
 
 async def retrieve(state: AnswerState) -> AnswerState:
     """Fetch supporting chunks, hybrid search with the question translated too."""
-    question = state["question"]
+    question = _searchable(state)
     translated = await translate_query(question, PIVOT_LANGUAGE)
     if translated.casefold() == question.casefold():
         translated = None
@@ -144,12 +213,24 @@ async def generate(state: AnswerState) -> AnswerState:
     context = hits_to_text(state["hits"])
     messages = [("system", _ANSWER_PROMPT.format(context=context))]
 
+    # The conversation is context for how to word the reply, never a source:
+    # the answer still has to come from the extracts above.
+    conversation = _format_history(state)
+    if conversation:
+        messages.append(
+            (
+                "system",
+                "Earlier in this conversation (context only, never a source "
+                f"of facts):\n{conversation}",
+            )
+        )
+
     if state.get("feedback"):
         messages.append(
             ("system", f"Your previous attempt was rejected: {state['feedback']}")
         )
 
-    messages.append(("human", state["question"]))
+    messages.append(("human", _searchable(state)))
 
     draft = await _model.with_structured_output(DraftAnswer).ainvoke(messages)
     return {

@@ -6,6 +6,9 @@
     screen ─── junk / injection ───────────────► END
        │
        ▼
+    condense ── rewrites a follow-up using the conversation
+       │
+       ▼
     route ──── small_talk ─────────────────────► chat ────► END
        ├────── safety / out_of_scope ──────────► refuse ──► END
        │
@@ -34,6 +37,7 @@ from nomanual.agent.nodes import (
     MAX_ATTEMPTS,
     MIN_SIMILARITY,
     chat,
+    condense,
     escalate,
     generate,
     refuse,
@@ -47,7 +51,7 @@ from nomanual.agent.state import AnswerState, Intent
 
 def after_screen(state: AnswerState) -> str:
     """A rejected question is already answered; nothing else needs to run."""
-    return END if state.get("rejection") else "route"
+    return END if state.get("rejection") else "condense"
 
 
 def after_route(state: AnswerState) -> str:
@@ -95,6 +99,7 @@ def build_graph():
     builder = StateGraph(AnswerState)
 
     builder.add_node("screen", screen)
+    builder.add_node("condense", condense)
     builder.add_node("route", route)
     builder.add_node("retrieve", retrieve)
     builder.add_node("generate", generate)
@@ -104,7 +109,8 @@ def build_graph():
     builder.add_node("escalate", escalate)
 
     builder.set_entry_point("screen")
-    builder.add_conditional_edges("screen", after_screen, ["route", END])
+    builder.add_conditional_edges("screen", after_screen, ["condense", END])
+    builder.add_edge("condense", "route")
     builder.add_conditional_edges(
         # The list declares every possible destination. Returning a node that
         # is not in it fails at compile time, with an error that does not point
@@ -128,13 +134,28 @@ def build_graph():
 answer_graph = build_graph()
 
 
-async def answer_question(question: str, product_id: UUID | None = None) -> AnswerState:
+async def answer_question(
+    question: str,
+    product_id: UUID | None = None,
+    history: list[tuple[str, str]] | None = None,
+    summary: dict | None = None,
+) -> AnswerState:
     """Run a question through the graph and return the final state.
 
     product_id scopes retrieval to one appliance. It is optional here so the
     graph stays testable, but the product is chosen before the conversation
     begins, so in the application it is always present.
+
+    history and summary are how a follow-up becomes answerable: the recent
+    turns verbatim, and the running notes for everything older. Both empty on
+    the first message of a conversation, which is the common case.
     """
     return await answer_graph.ainvoke(
-        {"question": question, "product_id": product_id, "attempts": 0}
+        {
+            "question": question,
+            "product_id": product_id,
+            "history": history or [],
+            "summary": summary,
+            "attempts": 0,
+        }
     )
