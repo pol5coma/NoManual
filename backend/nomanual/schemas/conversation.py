@@ -18,12 +18,23 @@ class MessageSchema(BaseModel):
     created_at: datetime
 
 
+class ConversationSummarySchema(BaseModel):
+    """A row in the sidebar: enough to recognise a thread, nothing more."""
+
+    id: UUID
+    title: str | None
+    created_at: datetime
+    last_message_at: datetime | None
+    message_count: int
+
+
 class ConversationSchema(BaseModel):
     """A thread and everything said in it, for rebuilding the chat on reload."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    title: str | None
     product_id: UUID | None
     created_at: datetime
     messages: list[MessageSchema]

@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Index, Integer, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -33,6 +33,11 @@ class Conversation(UUIDMixin, TimestampMixin, Base):
     product_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("product.id", ondelete="SET NULL"), index=True
     )
+
+    # Taken from the first question, trimmed. Enough to recognise a thread in
+    # a list, and free: a generated title would cost a model call per
+    # conversation to say roughly what the question already says.
+    title: Mapped[str | None] = mapped_column(String(120))
 
     # Running state of the conversation, not prose:
     #

@@ -38,6 +38,50 @@ async def get(session: AsyncSession, conversation_id: UUID) -> Conversation | No
     return await session.get(Conversation, conversation_id)
 
 
+# Long enough to recognise a thread, short enough for a sidebar row.
+TITLE_MAX_CHARS = 80
+
+
+def _title_from(question: str) -> str:
+    """The first question, trimmed to fit a list."""
+    text = " ".join(question.split())
+    if len(text) <= TITLE_MAX_CHARS:
+        return text
+    return text[: TITLE_MAX_CHARS - 1].rstrip() + "…"
+
+
+async def list_for_product(
+    session: AsyncSession, product_id: UUID
+) -> list[tuple[Conversation, int, object]]:
+    """Threads about one appliance, most recently active first.
+
+    The message count and the time of the last message come from a grouped
+    join rather than from loading every thread's messages: a sidebar must not
+    get slower as the conversations grow.
+    """
+    rows = await session.execute(
+        select(
+            Conversation,
+            func.count(Message.id),
+            func.max(Message.created_at),
+        )
+        .outerjoin(Message, Message.conversation_id == Conversation.id)
+        .where(Conversation.product_id == product_id)
+        .group_by(Conversation.id)
+        .order_by(
+            # A thread with no messages yet still has to appear somewhere, so
+            # its creation time stands in for activity it does not have.
+            func.coalesce(func.max(Message.created_at), Conversation.created_at).desc()
+        )
+    )
+    return [(conversation, count, last) for conversation, count, last in rows.all()]
+
+
+async def delete(session: AsyncSession, conversation: Conversation) -> None:
+    """Remove a thread. Its messages go with it, by ON DELETE CASCADE."""
+    await session.delete(conversation)
+
+
 async def recent_messages(
     session: AsyncSession, conversation_id: UUID, limit: int | None = None
 ) -> list[Message]:
@@ -95,6 +139,10 @@ async def append_turn(
             Message.conversation_id == conversation.id
         )
     )
+
+    # The first question names the thread.
+    if conversation.title is None:
+        conversation.title = _title_from(question)
 
     session.add_all(
         [
