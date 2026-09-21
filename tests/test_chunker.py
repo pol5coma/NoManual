@@ -5,6 +5,7 @@ gets tuned most often, so it is the one worth pinning down.
 """
 
 import pytest
+
 from nomanual.ingestion.chunker import chunk_pages
 from nomanual.ingestion.extract import (
     Page,

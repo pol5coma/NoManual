@@ -7,9 +7,10 @@ leave the process are faked: the Celery queue and the LLM.
 
 import pytest
 from conftest import make_manual, make_product
+from sqlalchemy import func, select
+
 from nomanual.models import Manual, Product, QueryLog, manual_product
 from nomanual.models.enums import ManualStatus
-from sqlalchemy import func, select
 
 PDF = b"%PDF-1.4 a manual"
 
@@ -136,7 +137,7 @@ def fake_answer(monkeypatch):
     from nomanual.api import ask as ask_api
 
     def _install(**state):
-        async def _answer(question, product_id=None):
+        async def _answer(question, product_id=None, history=None, summary=None):
             return {"answer": "Clean it every two weeks.", "intent": "how_to", **state}
 
         monkeypatch.setattr(ask_api, "answer_question", _answer)
@@ -146,9 +147,15 @@ def fake_answer(monkeypatch):
 
 async def test_a_grounded_answer_is_logged_as_resolved(session, client, fake_answer):
     fake_answer(grounded=True, escalated=False, citations=[])
+    product = await make_product(session)
+    await session.commit()
 
     response = await client.post(
-        "/ask", json={"question": "cada cuánto limpio el filtro"}
+        "/ask",
+        json={
+            "question": "cada cuánto limpio el filtro",
+            "product_id": str(product.id),
+        },
     )
 
     assert response.status_code == 200
@@ -162,8 +169,12 @@ async def test_a_grounded_answer_is_logged_as_resolved(session, client, fake_ans
 
 async def test_an_escalated_answer_is_not_resolved(session, client, fake_answer):
     fake_answer(grounded=True, escalated=True, citations=[])
+    product = await make_product(session)
+    await session.commit()
 
-    await client.post("/ask", json={"question": "cómo lo reparo"})
+    await client.post(
+        "/ask", json={"question": "cómo lo reparo", "product_id": str(product.id)}
+    )
 
     log = await session.scalar(select(QueryLog))
     assert log.resolved is False
@@ -175,7 +186,7 @@ async def test_a_question_can_be_asked_by_public_token(session, client, monkeypa
 
     captured = {}
 
-    async def _answer(question, product_id=None):
+    async def _answer(question, product_id=None, history=None, summary=None):
         captured["product_id"] = product_id
         return {"answer": "ok", "intent": "how_to", "grounded": True, "citations": []}
 

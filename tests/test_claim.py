@@ -16,12 +16,13 @@ from uuid import uuid4
 
 import pytest
 from conftest import make_manual
+from sqlalchemy import func, select
+
 from nomanual.api import manuals as manuals_api
 from nomanual.core.config import get_settings
 from nomanual.core.db import SessionLocal
 from nomanual.models import Manual
 from nomanual.models.enums import ManualStatus
-from sqlalchemy import func, select
 
 
 @pytest.fixture

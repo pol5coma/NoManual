@@ -62,6 +62,9 @@ os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="nomanual-test-uploads-")
 # setting; anything that would really call out is faked in the test itself.
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
+from sqlalchemy import text  # noqa: E402
+from sqlalchemy.ext.asyncio import create_async_engine  # noqa: E402
+
 from nomanual.core.config import get_settings  # noqa: E402
 from nomanual.core.db import SessionLocal, engine  # noqa: E402
 from nomanual.models import (  # noqa: E402
@@ -73,8 +76,6 @@ from nomanual.models import (  # noqa: E402
     manual_product,
 )
 from nomanual.models.enums import ManualStatus, ProductType, TenantType  # noqa: E402
-from sqlalchemy import text  # noqa: E402
-from sqlalchemy.ext.asyncio import create_async_engine  # noqa: E402
 
 EMBEDDING_DIMENSIONS = get_settings().embedding_dimensions
 
@@ -176,6 +177,7 @@ async def session():
 async def client():
     """HTTP client wired straight to the ASGI app, no network, no server."""
     from httpx import ASGITransport, AsyncClient
+
     from nomanual.main import app
 
     transport = ASGITransport(app=app)

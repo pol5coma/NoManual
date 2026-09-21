@@ -11,6 +11,7 @@ tested is the filter, not the embedding model.
 """
 
 from conftest import link, make_chunk, make_manual, make_product, vector
+
 from nomanual.searching.search import hybrid_search, lexical_search, query_texts
 
 

@@ -10,9 +10,10 @@ import hashlib
 from uuid import UUID, uuid4
 
 from conftest import make_manual, make_product, make_tenant
+from sqlalchemy import func, select
+
 from nomanual.models import PUBLIC_TENANT_ID, Manual
 from nomanual.models.enums import ManualStatus
-from sqlalchemy import func, select
 
 
 async def test_upload_does_not_reuse_another_tenants_file(session, client, monkeypatch):
@@ -76,6 +77,7 @@ async def test_delete_with_the_wrong_tenant_is_a_404(session, client):
 
 async def test_delete_removes_manual_chunks_and_file(session, client, tmp_path):
     from conftest import make_chunk
+
     from nomanual.core.storage import get_storage
     from nomanual.models import Chunk
 

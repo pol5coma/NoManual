@@ -59,6 +59,11 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "C4"]
 
+[tool.ruff.lint.isort]
+# Without this, ruff sorts `nomanual` imports in with third-party packages in
+# any file it has not seen before, and the repository drifts into two styles.
+known-first-party = ["nomanual"]
+
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's dependency markers are evaluated per request, not once at import,
 # so B008 does not apply to them.
