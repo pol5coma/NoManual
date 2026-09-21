@@ -1,6 +1,11 @@
 import { useState } from "react";
 
-import { PRODUCT_TYPES, uploadManual, type ProductType } from "./api";
+import {
+  PRODUCT_TYPES,
+  uploadManual,
+  type ManualUpload,
+  type ProductType,
+} from "./api";
 
 const TYPE_LABELS: Record<ProductType, string> = {
   washing_machine: "Lavadora",
@@ -13,13 +18,18 @@ const TYPE_LABELS: Record<ProductType, string> = {
 };
 
 interface Props {
+  // Open state lives in the parent: the ingestion card needs to know whether
+  // this form is covering it.
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   // Lets the parent refresh the product list once a manual lands, so the new
-  // appliance appears in the picker without a reload.
-  onUploaded: () => void;
+  // appliance appears in the picker without a reload. The manual travels with
+  // it because ingestion has only just started: its id is what the developer
+  // panel follows while the worker processes the file.
+  onUploaded: (manual: ManualUpload) => void;
 }
 
-export default function UploadPanel({ onUploaded }: Props) {
-  const [open, setOpen] = useState(false);
+export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [type, setType] = useState<ProductType>("other");
@@ -42,7 +52,7 @@ export default function UploadPanel({ onUploaded }: Props) {
       setBrand("");
       setModel("");
       setFile(null);
-      onUploaded();
+      onUploaded(manual);
     } catch {
       setMessage("No se pudo subir el manual. Comprueba que es un PDF.");
     } finally {
@@ -52,7 +62,7 @@ export default function UploadPanel({ onUploaded }: Props) {
 
   if (!open) {
     return (
-      <button className="link" onClick={() => setOpen(true)}>
+      <button type="button" className="button" onClick={() => onOpenChange(true)}>
         Subir un manual
       </button>
     );
@@ -62,7 +72,7 @@ export default function UploadPanel({ onUploaded }: Props) {
     <form className="upload" onSubmit={handleSubmit}>
       <div className="upload-head">
         <h2>Subir un manual</h2>
-        <button type="button" className="link" onClick={() => setOpen(false)}>
+        <button type="button" className="link" onClick={() => onOpenChange(false)}>
           Cerrar
         </button>
       </div>
@@ -110,7 +120,11 @@ export default function UploadPanel({ onUploaded }: Props) {
         <span>{file ? file.name : "Selecciona el PDF del manual"}</span>
       </label>
 
-      <button type="submit" disabled={!brand || !model || !file || busy}>
+      <button
+        type="submit"
+        className="button primary"
+        disabled={!brand || !model || !file || busy}
+      >
         {busy ? "Subiendo…" : "Subir"}
       </button>
 

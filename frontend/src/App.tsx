@@ -1,13 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ask,
+  deleteConversation,
   getConversation,
+  listConversations,
   listProducts,
   type AskResponse,
   type Citation,
+  type ConversationSummary,
+  type ManualUpload,
   type Product,
 } from "./api";
+import IngestionPanel from "./IngestionPanel";
+import Sidebar from "./Sidebar";
 import UploadPanel from "./UploadPanel";
 import "./App.css";
 
@@ -23,10 +29,11 @@ interface Message {
   citations?: Citation[];
 }
 
-// One thread per appliance, remembered across reloads. localStorage rather
-// than a cookie: nothing here is sent to the server on its own, and the id is
-// meaningless to anyone who does not already have the conversation.
+// The thread last opened for each appliance, so a reload comes back to it.
+// localStorage rather than a cookie: nothing here is sent to the server on its
+// own, and the id is meaningless to anyone who does not have the conversation.
 const conversationKey = (productId: string) => `nomanual.conversation.${productId}`;
+const DEV_MODE_KEY = "nomanual.devMode";
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -34,8 +41,21 @@ export default function App() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Developer mode adds timings and the numbers each stage produced. The
+  // stages themselves are shown to everyone: someone who has just uploaded a
+  // 130-page PDF deserves to see it being read, split and indexed.
+  const [devMode, setDevMode] = useState(
+    () => localStorage.getItem(DEV_MODE_KEY) === "true",
+  );
+  const [ingestingId, setIngestingId] = useState<string | null>(null);
+  // Lifted out of UploadPanel because the ingestion card has to know: the form
+  // floats over that corner, and the card slides aside rather than hiding
+  // under it.
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -49,16 +69,28 @@ export default function App() {
       );
   }
 
+  // useCallback keeps the same function across renders, so the effect below
+  // does not re-run on every keystroke just because a new one was created.
+  const refreshConversations = useCallback((id: string) => {
+    listConversations(id)
+      .then(setConversations)
+      .catch(() => setConversations([]));
+  }, []);
+
   // The empty dependency array is what makes this run once: React re-runs an
   // effect whenever a value in that array changes, and nothing changes in an
   // empty one.
   useEffect(refreshProducts, []);
 
-  // Restores the thread for this appliance, if there is one. Clearing the
+  // Restores the thread for this appliance and lists the rest. Clearing the
   // screen happens in the change handler instead: an effect that sets state
   // synchronously makes React render twice for one user action.
   useEffect(() => {
-    const stored = productId && localStorage.getItem(conversationKey(productId));
+    if (!productId) return;
+
+    refreshConversations(productId);
+
+    const stored = localStorage.getItem(conversationKey(productId));
     if (!stored) return;
 
     // Switching appliances twice quickly would otherwise let the first, slower
@@ -69,13 +101,7 @@ export default function App() {
       .then((conversation) => {
         if (!current) return;
         setConversationId(conversation.id);
-        setMessages(
-          conversation.messages.map((message) => ({
-            role: message.role,
-            text: message.content,
-            citations: message.citations,
-          })),
-        );
+        setMessages(toMessages(conversation.messages));
       })
       .catch(() => {
         // The thread is gone - a reset database, a cleared row. Forgetting the
@@ -86,7 +112,7 @@ export default function App() {
     return () => {
       current = false;
     };
-  }, [productId]);
+  }, [productId, refreshConversations]);
 
   // Keeps the newest message in view. Runs after every change to messages.
   useEffect(() => {
@@ -100,6 +126,7 @@ export default function App() {
     setProductId(id);
     setConversationId(null);
     setMessages([]);
+    setConversations([]);
     setError(null);
   }
 
@@ -108,6 +135,41 @@ export default function App() {
     setConversationId(null);
     setMessages([]);
     setError(null);
+  }
+
+  async function openConversation(id: string) {
+    setError(null);
+    try {
+      const conversation = await getConversation(id);
+      setConversationId(conversation.id);
+      setMessages(toMessages(conversation.messages));
+      localStorage.setItem(conversationKey(productId), conversation.id);
+    } catch {
+      setError("No se pudo abrir la conversación.");
+    }
+  }
+
+  async function removeConversation(id: string) {
+    try {
+      await deleteConversation(id);
+      if (id === conversationId) startNewConversation();
+      refreshConversations(productId);
+    } catch {
+      setError("No se pudo eliminar la conversación.");
+    }
+  }
+
+  function handleUploaded(manual: ManualUpload) {
+    refreshProducts();
+    // The id is kept even with the panel hidden, so turning developer mode on
+    // mid-ingestion shows what is already happening.
+    setIngestingId(manual.id);
+  }
+
+  function toggleDevMode() {
+    const next = !devMode;
+    setDevMode(next);
+    localStorage.setItem(DEV_MODE_KEY, String(next));
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -137,6 +199,7 @@ export default function App() {
         ...current,
         { role: "assistant", text: response.answer, response },
       ]);
+      refreshConversations(productId);
     } catch {
       setError("No se pudo obtener respuesta. Inténtalo de nuevo.");
     } finally {
@@ -145,70 +208,118 @@ export default function App() {
   }
 
   const selected = products.find((product) => product.id === productId);
+  const productName = selected ? `${selected.brand} ${selected.model}` : null;
 
   return (
-    <div className="app">
-      <header className="header">
-        <div className="brand">
-          <h1>NoManual</h1>
-          <span>Pregunta a tus manuales</span>
-        </div>
+    <div className="shell">
+      <Sidebar
+        conversations={conversations}
+        activeId={conversationId}
+        productName={productName}
+        onSelect={openConversation}
+        onNew={startNewConversation}
+        onDelete={removeConversation}
+      />
 
-        <div className="controls">
-          <select
-            value={productId}
-            onChange={(event) => handleProductChange(event.target.value)}
-          >
-            <option value="">Elige tu aparato…</option>
-            {products.map((product) => (
-              <option key={product.id} value={product.id}>
-                {product.brand} {product.model}
-              </option>
-            ))}
-          </select>
-          {conversationId && (
-            <button type="button" className="link" onClick={startNewConversation}>
-              Nueva conversación
+      <div className="app">
+        <header className="header">
+          <div className="brand">
+            <h1>NoManual</h1>
+            <span>Pregunta a tus manuales</span>
+          </div>
+
+          <div className="controls">
+            <select
+              value={productId}
+              onChange={(event) => handleProductChange(event.target.value)}
+            >
+              <option value="">Elige tu aparato…</option>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.brand} {product.model}
+                </option>
+              ))}
+            </select>
+
+            <UploadPanel
+              open={uploadOpen}
+              onOpenChange={setUploadOpen}
+              onUploaded={handleUploaded}
+            />
+
+            <button
+              type="button"
+              className={devMode ? "toggle on" : "toggle"}
+              onClick={toggleDevMode}
+              title="Muestra el proceso de ingesta paso a paso"
+            >
+              Modo desarrollador
             </button>
-          )}
-          <UploadPanel onUploaded={refreshProducts} />
-        </div>
-      </header>
+          </div>
+        </header>
 
-      <main className="chat">
-        {messages.length === 0 && (
-          <p className="empty">
-            {selected
-              ? `Pregunta lo que quieras sobre tu ${selected.brand} ${selected.model}.`
-              : "Elige un aparato para empezar."}
-          </p>
+        {ingestingId && (
+          <IngestionPanel
+            manualId={ingestingId}
+            detailed={devMode}
+            shifted={uploadOpen}
+            onClose={() => setIngestingId(null)}
+          />
         )}
 
-        {messages.map((message, index) => (
-          <Turn key={index} message={message} />
-        ))}
+        <main className="chat">
+          {messages.length === 0 && (
+            <p className="empty">
+              {selected
+                ? `Pregunta lo que quieras sobre tu ${productName}.`
+                : "Elige un aparato para empezar."}
+            </p>
+          )}
 
-        {loading && <div className="turn assistant thinking">Buscando en el manual…</div>}
-        {error && <div className="error">{error}</div>}
+          {messages.map((message, index) => (
+            <Turn key={index} message={message} />
+          ))}
 
-        <div ref={endRef} />
-      </main>
+          {loading && (
+            <div className="turn assistant thinking">Buscando en el manual…</div>
+          )}
+          {error && <div className="error">{error}</div>}
 
-      <form className="composer" onSubmit={handleSubmit}>
-        <input
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder={
-            selected ? "¿Cada cuánto limpio el filtro?" : "Elige un aparato primero"
-          }
-          disabled={!productId || loading}
-        />
-        <button type="submit" disabled={!productId || !question.trim() || loading}>
-          Preguntar
-        </button>
-      </form>
+          <div ref={endRef} />
+        </main>
+
+        <form className="composer" onSubmit={handleSubmit}>
+          <input
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder={
+              selected ? "¿Cada cuánto limpio el filtro?" : "Elige un aparato primero"
+            }
+            disabled={!productId || loading}
+          />
+          <button
+            type="submit"
+            className="button primary"
+            disabled={!productId || !question.trim() || loading}
+          >
+            Preguntar
+          </button>
+        </form>
+      </div>
     </div>
   );
+}
+
+// The server returns messages, the chat renders turns. One shape conversion,
+// in one place.
+function toMessages(
+  messages: { role: "user" | "assistant"; content: string; citations: Citation[] }[],
+): Message[] {
+  return messages.map((message) => ({
+    role: message.role,
+    text: message.content,
+    citations: message.citations,
+  }));
 }
 
 function Turn({ message }: { message: Message }) {

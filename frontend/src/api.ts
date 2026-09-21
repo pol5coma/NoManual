@@ -90,8 +90,45 @@ export interface Conversation {
   messages: ConversationMessage[];
 }
 
+export interface ConversationSummary {
+  id: string;
+  title: string | null;
+  created_at: string;
+  last_message_at: string | null;
+  message_count: number;
+}
+
 export function getConversation(conversationId: string): Promise<Conversation> {
   return request<Conversation>(`/conversations/${conversationId}`);
+}
+
+export function listConversations(
+  productId: string,
+): Promise<ConversationSummary[]> {
+  return request<ConversationSummary[]>(
+    `/conversations?product_id=${productId}`,
+  );
+}
+
+// 204 No Content: there is no body to parse, so this one does not go through
+// request<T>.
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw new Error(await response.text());
+}
+
+// One stage of the ingestion pipeline, as the worker records it. `detail` is
+// deliberately loose: each step reports different numbers - pages, languages,
+// vectors - and the panel renders whatever it finds.
+export interface ProgressStep {
+  step: string;
+  label: string;
+  status: "pending" | "running" | "done" | "failed";
+  duration_ms?: number;
+  detail?: Record<string, unknown>;
+  error?: string;
 }
 
 export interface ManualUpload {
@@ -102,6 +139,19 @@ export interface ManualUpload {
   page_count: number | null;
   chunk_count: number | null;
   error: string | null;
+  progress: ProgressStep[];
+}
+
+export function getManual(manualId: string): Promise<ManualUpload> {
+  return request<ManualUpload>(`/manuals/${manualId}`);
+}
+
+// force=true re-runs the pipeline over a manual that is already indexed. It
+// pays for the embeddings again, which is why the backend refuses without it.
+export function reingestManual(manualId: string): Promise<ManualUpload> {
+  return request<ManualUpload>(`/manuals/${manualId}/ingest?force=true`, {
+    method: "POST",
+  });
 }
 
 // The categories the backend accepts, mirroring ProductType. Kept as a const

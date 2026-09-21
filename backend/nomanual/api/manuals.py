@@ -4,7 +4,16 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy import and_, func, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,7 +83,9 @@ def _queue_ingestion(manual_id: UUID) -> None:
     ingest_manual.delay(str(manual_id))
 
 
-async def claim_and_queue(session: AsyncSession, manual_id: UUID) -> bool:
+async def claim_and_queue(
+    session: AsyncSession, manual_id: UUID, include_ready: bool = False
+) -> bool:
     """Claim a manual for ingestion and queue it. True if we won the claim.
 
     The claim is a single conditional UPDATE, which is what makes concurrent
@@ -84,10 +95,20 @@ async def claim_and_queue(session: AsyncSession, manual_id: UUID) -> bool:
 
     The same statement also reclaims manuals whose worker died: a `processing`
     older than the stale threshold is treated as abandoned.
+
+    include_ready re-runs the pipeline over a manual that is already indexed.
+    Not the default: it pays for the embeddings a second time, so it has to be
+    asked for explicitly. It is safe because ingestion replaces the chunks in
+    one transaction - the current index keeps serving until the new one is
+    ready to take its place.
     """
     settings = get_settings()
     stale_before = datetime.now(UTC) - timedelta(
         seconds=settings.ingestion_stale_after_seconds
+    )
+
+    requeueable = (
+        (*REQUEUEABLE, ManualStatus.READY) if include_ready else REQUEUEABLE
     )
 
     result = await session.execute(
@@ -95,7 +116,7 @@ async def claim_and_queue(session: AsyncSession, manual_id: UUID) -> bool:
         .where(
             Manual.id == manual_id,
             or_(
-                Manual.status.in_(REQUEUEABLE),
+                Manual.status.in_(requeueable),
                 and_(
                     Manual.status == ManualStatus.PROCESSING,
                     or_(
@@ -250,18 +271,24 @@ async def get_manual(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def ingest_manual_now(
-    manual_id: UUID, session: AsyncSession = Depends(get_session)
+    manual_id: UUID,
+    # Re-runs the pipeline over a manual that is already indexed. Off by
+    # default: reprocessing costs the embeddings again, so nobody should pay
+    # for it by accident.
+    force: bool = Query(False, description="Reprocess an already indexed manual."),
+    session: AsyncSession = Depends(get_session),
 ) -> Manual:
-    """Queue ingestion for a manual that has not been indexed yet.
+    """Queue ingestion for a manual.
 
     Only manuals in `pending` or `failed` are eligible, plus any left in
-    `processing` by a worker that died. Anything else returns 409.
+    `processing` by a worker that died, plus - with `force` - one that is
+    already `ready`. Anything else returns 409.
     """
     manual = await session.get(Manual, manual_id)
     if manual is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Manual not found.")
 
-    claimed = await claim_and_queue(session, manual_id)
+    claimed = await claim_and_queue(session, manual_id, include_ready=force)
     await session.refresh(manual)
 
     if not claimed:

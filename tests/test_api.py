@@ -110,6 +110,20 @@ async def test_ingesting_a_ready_manual_returns_409(session, client):
     assert "already been processed" in response.json()["detail"]
 
 
+async def test_a_ready_manual_can_be_reprocessed_on_purpose(
+    session, client, no_celery
+):
+    """Reprocessing pays for the embeddings again, so it has to be asked for."""
+    manual = await make_manual(session, status=ManualStatus.READY)
+    await session.commit()
+
+    response = await client.post(f"/manuals/{manual.id}/ingest?force=true")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == ManualStatus.PROCESSING.value
+    assert no_celery == [str(manual.id)]
+
+
 # --- Products -----------------------------------------------------------------
 
 
