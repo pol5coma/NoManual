@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -11,6 +12,7 @@ from sqlalchemy import (
     Table,
     Text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -83,6 +85,20 @@ class Manual(UUIDMixin, TimestampMixin, Base):
     )
 
     error: Mapped[str | None] = mapped_column(Text)
+
+    # What the pipeline did, step by step:
+    #
+    #   [{"step": "extract", "status": "done", "duration_ms": 1430,
+    #     "detail": {"pages": 130, "backend": "pymupdf"}}, ...]
+    #
+    # Written as the worker goes, in short transactions of its own, so the API
+    # can show an ingestion in progress. It lives in the row rather than in a
+    # websocket because the state has to survive a reload, a redeploy and a
+    # worker restart - and because a manual ingested last week is still worth
+    # being able to explain.
+    progress: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default="[]", nullable=False
+    )
     page_count: Mapped[int | None] = mapped_column(Integer)
     chunk_count: Mapped[int | None] = mapped_column(Integer)
 

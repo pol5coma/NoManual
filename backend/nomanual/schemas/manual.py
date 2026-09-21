@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -17,3 +18,7 @@ class ManualOut(BaseModel):
     page_count: int | None = None
     chunk_count: int | None = None
     error: str | None = None
+
+    # The pipeline, step by step, with timings and what each one produced.
+    # Polled by the web app while a manual is being processed.
+    progress: list[dict[str, Any]] = []

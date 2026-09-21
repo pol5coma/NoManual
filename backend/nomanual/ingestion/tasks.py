@@ -10,6 +10,7 @@ from nomanual.core.storage import get_storage
 from nomanual.ingestion.chunker import chunk_pages
 from nomanual.ingestion.embeddings import embed_texts
 from nomanual.ingestion.extract import extract_pages
+from nomanual.ingestion.progress import Progress
 from nomanual.models import Chunk, Manual
 from nomanual.models.enums import ManualStatus
 from nomanual.worker import celery_app
@@ -63,21 +64,57 @@ async def _ingest(manual_id: UUID) -> None:
         storage_key = manual.storage_key
         tenant_id = manual.tenant_id
 
+    progress = Progress(manual_id)
+    await progress.start()
+
     try:
         # Roughly two minutes of work, deliberately outside any session: a
         # pooled connection held open while we wait on OpenAI is a connection
         # nobody else can use.
-        data = get_storage().read(storage_key)
-        pages = extract_pages(data)
+        async with progress.step("read") as detail:
+            data = get_storage().read(storage_key)
+            detail["bytes"] = len(data)
+
+        async with progress.step("extract") as detail:
+            pages = extract_pages(data)
+            detail["pages"] = len(pages)
+            detail["backend"] = settings.pdf_backend
 
         if not pages:
             # Expected outcome, not a crash: the file is a stack of images.
             logger.warning("Manual %s has no extractable text", manual_id)
+            await progress.fail("extract", SCANNED_PDF_MESSAGE)
             await _mark_failed(manual_id, SCANNED_PDF_MESSAGE)
             return
 
-        chunks = chunk_pages(pages, settings.chunk_size, settings.chunk_overlap)
-        vectors = await embed_texts([str(chunk) for chunk in chunks])
+        # Cleaning and language detection already happened inside
+        # extract_pages; this step reports what they produced, which is what
+        # makes a multilingual manual visible at a glance.
+        async with progress.step("clean") as detail:
+            languages: dict[str, int] = {}
+            for page in pages:
+                languages[page.language] = languages.get(page.language, 0) + 1
+            detail["languages"] = dict(
+                sorted(languages.items(), key=lambda item: item[1], reverse=True)
+            )
+            detail["characters"] = sum(len(page.text) for page in pages)
+
+        async with progress.step("chunk") as detail:
+            chunks = chunk_pages(pages, settings.chunk_size, settings.chunk_overlap)
+            detail["chunks"] = len(chunks)
+            detail["avg_chars"] = (
+                sum(len(chunk.content) for chunk in chunks) // len(chunks)
+                if chunks
+                else 0
+            )
+            detail["size"] = settings.chunk_size
+            detail["overlap"] = settings.chunk_overlap
+
+        async with progress.step("embed") as detail:
+            vectors = await embed_texts([str(chunk) for chunk in chunks])
+            detail["vectors"] = len(vectors)
+            detail["model"] = settings.embedding_model
+            detail["dimensions"] = settings.embedding_dimensions
 
         rows = [
             Chunk(
@@ -96,17 +133,22 @@ async def _ingest(manual_id: UUID) -> None:
 
         # One short transaction. The delete and the insert go together, so a
         # failure here leaves the previous index intact and still serving.
-        async with worker_session() as session:
-            await session.execute(delete(Chunk).where(Chunk.manual_id == manual_id))
-            session.add_all(rows)
+        async with progress.step("index") as detail:
+            async with worker_session() as session:
+                await session.execute(
+                    delete(Chunk).where(Chunk.manual_id == manual_id)
+                )
+                session.add_all(rows)
 
-            manual = await session.get(Manual, manual_id)
-            manual.status = ManualStatus.READY
-            manual.page_count = len(pages)
-            manual.chunk_count = len(chunks)
-            manual.processing_started_at = None
+                manual = await session.get(Manual, manual_id)
+                manual.status = ManualStatus.READY
+                manual.page_count = len(pages)
+                manual.chunk_count = len(chunks)
+                manual.processing_started_at = None
 
-            await session.commit()
+                await session.commit()
+
+            detail["chunks_indexed"] = len(rows)
 
         logger.info(
             "Manual %s ingested: %d pages, %d chunks",
