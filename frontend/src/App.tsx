@@ -12,6 +12,7 @@ import {
   type ManualUpload,
   type Product,
 } from "./api";
+import DeveloperPanel from "./DeveloperPanel";
 import IngestionPanel from "./IngestionPanel";
 import Sidebar from "./Sidebar";
 import UploadPanel from "./UploadPanel";
@@ -258,13 +259,28 @@ export default function App() {
           </div>
         </header>
 
-        {ingestingId && (
-          <IngestionPanel
-            manualId={ingestingId}
-            detailed={devMode}
-            shifted={uploadOpen}
-            onClose={() => setIngestingId(null)}
-          />
+        {/* Developer mode replaces the one-off card with the full list: every
+            manual of this appliance, its state and, for whatever is being
+            processed, the pipeline step by step. Without it, someone who has
+            just uploaded a PDF still sees the plain progress of their own
+            upload. */}
+        {devMode ? (
+          <div className={uploadOpen ? "panel-slot shifted" : "panel-slot"}>
+            <DeveloperPanel
+              productId={productId}
+              productName={productName}
+              onManualsChanged={refreshProducts}
+            />
+          </div>
+        ) : (
+          ingestingId && (
+            <IngestionPanel
+              manualId={ingestingId}
+              detailed={false}
+              shifted={uploadOpen}
+              onClose={() => setIngestingId(null)}
+            />
+          )
         )}
 
         <main className="chat">

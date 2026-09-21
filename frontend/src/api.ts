@@ -148,6 +148,20 @@ export function getManual(manualId: string): Promise<ManualUpload> {
 
 // force=true re-runs the pipeline over a manual that is already indexed. It
 // pays for the embeddings again, which is why the backend refuses without it.
+export function listManuals(productId?: string): Promise<ManualUpload[]> {
+  const query = productId ? `?product_id=${productId}` : "";
+  return request<ManualUpload[]>(`/manuals${query}`);
+}
+
+// 204 No Content, so there is no body to parse. Takes the chunks and the
+// stored file with it.
+export async function deleteManual(manualId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/manuals/${manualId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw new Error(await response.text());
+}
+
 export function reingestManual(manualId: string): Promise<ManualUpload> {
   return request<ManualUpload>(`/manuals/${manualId}/ingest?force=true`, {
     method: "POST",

@@ -492,6 +492,121 @@ input:focus {
   padding: 9px 12px;
 }
 
+/* ---------- developer panel ---------- */
+
+/* The same corner the upload form floats over, so the panel gives it room
+   rather than hiding half its numbers underneath. */
+.panel-slot { transition: margin-right 0.2s ease; }
+.panel-slot.shifted { margin-right: 404px; }
+
+@media (max-width: 1100px) {
+  .panel-slot.shifted { margin-right: 0; opacity: 0.35; }
+}
+
+.developer {
+  margin: 18px 28px 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: 10px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.developer header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.developer h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.developer-scope,
+.developer-empty {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.developer-empty { display: block; margin: 12px 0 0; font-size: 13px; }
+.developer-error { margin: 10px 0 0; font-size: 12.5px; color: var(--danger); }
+
+.manuals {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.manual {
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.manual-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.manual-id { min-width: 0; }
+
+.manual-title {
+  display: block;
+  font-size: 13.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manual-facts {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.manual-actions .button { padding: 5px 10px; font-size: 12px; }
+
+.button.danger { color: var(--danger); border-color: #eedcdc; }
+.button.danger:hover:not(:disabled) { background: var(--danger-soft); }
+
+/* The state in one word, coloured the way the pipeline reads it. */
+.status {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--line-soft);
+  color: var(--muted);
+}
+
+.status.ready { background: var(--accent-soft); color: var(--accent); }
+.status.processing { background: var(--warn-soft); color: var(--warn); }
+.status.failed { background: var(--danger-soft); color: var(--danger); }
+
+.manual .bar { margin-top: 12px; }
+.manual .steps { margin-top: 10px; }
+
 /* ---------- ingestion ---------- */
 
 /* The pipeline, made visible. Normally this is the part hidden behind a
