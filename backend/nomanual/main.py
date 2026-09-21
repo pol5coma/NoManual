@@ -3,7 +3,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from nomanual.api import ask, debug, health, manuals, products, search
+from nomanual.api import (
+    ask,
+    conversations,
+    debug,
+    health,
+    manuals,
+    products,
+    search,
+)
 from nomanual.core.config import get_settings
 from nomanual.core.db import engine
 from nomanual.mcp_server import mcp
@@ -45,6 +53,7 @@ app.include_router(manuals.router)
 app.include_router(search.router)
 app.include_router(ask.router)
 app.include_router(products.router)
+app.include_router(conversations.router)
 
 
 # Mounted on the same app on purpose: the MCP tools call the same
