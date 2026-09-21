@@ -27,6 +27,7 @@ export interface Citation {
 
 export interface AskResponse {
   query_id: string;
+  conversation_id: string;
   question: string;
   answer: string;
   intent: string | null;
@@ -55,11 +56,42 @@ export function listProducts(): Promise<Product[]> {
   return request<Product[]>("/products");
 }
 
-export function ask(question: string, productId: string): Promise<AskResponse> {
+// conversationId is what turns separate questions into a conversation: with it
+// the backend can resolve "and how long does it take?" against what came
+// before. Omitted on the first question, which is when the backend opens the
+// thread and returns its id.
+export function ask(
+  question: string,
+  productId: string,
+  conversationId?: string,
+): Promise<AskResponse> {
   return request<AskResponse>("/ask", {
     method: "POST",
-    body: JSON.stringify({ question, product_id: productId }),
+    body: JSON.stringify({
+      question,
+      product_id: productId,
+      conversation_id: conversationId,
+    }),
   });
+}
+
+export interface ConversationMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: Citation[];
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  product_id: string | null;
+  created_at: string;
+  messages: ConversationMessage[];
+}
+
+export function getConversation(conversationId: string): Promise<Conversation> {
+  return request<Conversation>(`/conversations/${conversationId}`);
 }
 
 export interface ManualUpload {

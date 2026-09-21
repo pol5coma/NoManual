@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ask, listProducts, type AskResponse, type Product } from "./api";
+import {
+  ask,
+  getConversation,
+  listProducts,
+  type AskResponse,
+  type Citation,
+  type Product,
+} from "./api";
 import UploadPanel from "./UploadPanel";
 import "./App.css";
 
@@ -10,14 +17,23 @@ import "./App.css";
 interface Message {
   role: "user" | "assistant";
   text: string;
+  // Present on turns answered in this session. A turn restored from the server
+  // only carries its citations, which is why they are kept separately.
   response?: AskResponse;
+  citations?: Citation[];
 }
+
+// One thread per appliance, remembered across reloads. localStorage rather
+// than a cookie: nothing here is sent to the server on its own, and the id is
+// meaningless to anyone who does not already have the conversation.
+const conversationKey = (productId: string) => `nomanual.conversation.${productId}`;
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productId, setProductId] = useState("");
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,10 +54,61 @@ export default function App() {
   // empty one.
   useEffect(refreshProducts, []);
 
+  // Restores the thread for this appliance, if there is one. Clearing the
+  // screen happens in the change handler instead: an effect that sets state
+  // synchronously makes React render twice for one user action.
+  useEffect(() => {
+    const stored = productId && localStorage.getItem(conversationKey(productId));
+    if (!stored) return;
+
+    // Switching appliances twice quickly would otherwise let the first, slower
+    // response paint over the second.
+    let current = true;
+
+    getConversation(stored)
+      .then((conversation) => {
+        if (!current) return;
+        setConversationId(conversation.id);
+        setMessages(
+          conversation.messages.map((message) => ({
+            role: message.role,
+            text: message.content,
+            citations: message.citations,
+          })),
+        );
+      })
+      .catch(() => {
+        // The thread is gone - a reset database, a cleared row. Forgetting the
+        // id is the recovery: the next question starts a new conversation.
+        localStorage.removeItem(conversationKey(productId));
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [productId]);
+
   // Keeps the newest message in view. Runs after every change to messages.
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Another appliance means another conversation, because retrieval is scoped
+  // to the product: carrying the thread over would mix an oven's history into
+  // a washing machine's search.
+  function handleProductChange(id: string) {
+    setProductId(id);
+    setConversationId(null);
+    setMessages([]);
+    setError(null);
+  }
+
+  function startNewConversation() {
+    if (productId) localStorage.removeItem(conversationKey(productId));
+    setConversationId(null);
+    setMessages([]);
+    setError(null);
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     // A <form> reloads the page by default. In a single-page app that would
@@ -59,7 +126,13 @@ export default function App() {
     setError(null);
 
     try {
-      const response = await ask(text, productId);
+      const response = await ask(text, productId, conversationId ?? undefined);
+
+      // The first answer is what names the thread. Everything after it just
+      // keeps sending the same id back.
+      setConversationId(response.conversation_id);
+      localStorage.setItem(conversationKey(productId), response.conversation_id);
+
       setMessages((current) => [
         ...current,
         { role: "assistant", text: response.answer, response },
@@ -84,7 +157,7 @@ export default function App() {
         <div className="controls">
           <select
             value={productId}
-            onChange={(event) => setProductId(event.target.value)}
+            onChange={(event) => handleProductChange(event.target.value)}
           >
             <option value="">Elige tu aparato…</option>
             {products.map((product) => (
@@ -93,6 +166,11 @@ export default function App() {
               </option>
             ))}
           </select>
+          {conversationId && (
+            <button type="button" className="link" onClick={startNewConversation}>
+              Nueva conversación
+            </button>
+          )}
           <UploadPanel onUploaded={refreshProducts} />
         </div>
       </header>
@@ -135,14 +213,17 @@ export default function App() {
 
 function Turn({ message }: { message: Message }) {
   const { response } = message;
+  // Answered in this session, or restored from the server: the sources are
+  // shown either way, so a reload does not turn a cited answer into a claim.
+  const citations = response?.citations ?? message.citations ?? [];
 
   return (
     <div className={`turn ${message.role}`}>
       <p>{message.text}</p>
 
-      {response && response.citations.length > 0 && (
+      {citations.length > 0 && (
         <ul className="citations">
-          {response.citations.map((citation) => (
+          {citations.map((citation) => (
             <li key={citation.chunk_id}>página {citation.page}</li>
           ))}
         </ul>
