@@ -65,7 +65,7 @@ export default function App() {
     listProducts()
       .then(setProducts)
       .catch(() =>
-        setError("No se pudo cargar el catálogo. ¿Está el backend en marcha?"),
+        setError("Could not load the catalogue. Is the backend running?"),
       );
   }
 
@@ -145,7 +145,7 @@ export default function App() {
       setMessages(toMessages(conversation.messages));
       localStorage.setItem(conversationKey(productId), conversation.id);
     } catch {
-      setError("No se pudo abrir la conversación.");
+      setError("Could not open that conversation.");
     }
   }
 
@@ -155,7 +155,7 @@ export default function App() {
       if (id === conversationId) startNewConversation();
       refreshConversations(productId);
     } catch {
-      setError("No se pudo eliminar la conversación.");
+      setError("Could not delete that conversation.");
     }
   }
 
@@ -201,7 +201,7 @@ export default function App() {
       ]);
       refreshConversations(productId);
     } catch {
-      setError("No se pudo obtener respuesta. Inténtalo de nuevo.");
+      setError("Could not get an answer. Try again.");
     } finally {
       setLoading(false);
     }
@@ -225,7 +225,7 @@ export default function App() {
         <header className="header">
           <div className="brand">
             <h1>NoManual</h1>
-            <span>Pregunta a tus manuales</span>
+            <span>Ask your manuals</span>
           </div>
 
           <div className="controls">
@@ -233,7 +233,7 @@ export default function App() {
               value={productId}
               onChange={(event) => handleProductChange(event.target.value)}
             >
-              <option value="">Elige tu aparato…</option>
+              <option value="">Choose your appliance…</option>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.brand} {product.model}
@@ -251,9 +251,9 @@ export default function App() {
               type="button"
               className={devMode ? "toggle on" : "toggle"}
               onClick={toggleDevMode}
-              title="Muestra el proceso de ingesta paso a paso"
+              title="Shows the ingestion pipeline step by step"
             >
-              Modo desarrollador
+              Developer mode
             </button>
           </div>
         </header>
@@ -271,8 +271,8 @@ export default function App() {
           {messages.length === 0 && (
             <p className="empty">
               {selected
-                ? `Pregunta lo que quieras sobre tu ${productName}.`
-                : "Elige un aparato para empezar."}
+                ? `Ask anything about your ${productName}.`
+                : "Choose an appliance to start."}`
             </p>
           )}
 
@@ -281,7 +281,7 @@ export default function App() {
           ))}
 
           {loading && (
-            <div className="turn assistant thinking">Buscando en el manual…</div>
+            <div className="turn assistant thinking">Searching the manual…</div>
           )}
           {error && <div className="error">{error}</div>}
 
@@ -293,7 +293,7 @@ export default function App() {
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             placeholder={
-              selected ? "¿Cada cuánto limpio el filtro?" : "Elige un aparato primero"
+              selected ? "How often should I clean the filter?" : "Choose an appliance first"
             }
             disabled={!productId || loading}
           />
@@ -302,7 +302,7 @@ export default function App() {
             className="button primary"
             disabled={!productId || !question.trim() || loading}
           >
-            Preguntar
+            Ask
           </button>
         </form>
       </div>
@@ -335,16 +335,16 @@ function Turn({ message }: { message: Message }) {
       {citations.length > 0 && (
         <ul className="citations">
           {citations.map((citation) => (
-            <li key={citation.chunk_id}>página {citation.page}</li>
+            <li key={citation.chunk_id}>page {citation.page}</li>
           ))}
         </ul>
       )}
 
       {response?.escalated && (
-        <span className="badge escalated">derivado a soporte</span>
+        <span className="badge escalated">handed to support</span>
       )}
       {response && !response.escalated && !response.grounded && (
-        <span className="badge ungrounded">sin fuente verificada</span>
+        <span className="badge ungrounded">no verified source</span>
       )}
     </div>
   );

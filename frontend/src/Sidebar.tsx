@@ -22,14 +22,14 @@ export default function Sidebar({
   return (
     <nav className="sidebar">
       <div className="sidebar-head">
-        <span className="sidebar-product">{productName ?? "Sin aparato"}</span>
+        <span className="sidebar-product">{productName ?? "No appliance"}</span>
         <button
           type="button"
           className="button primary block"
           onClick={onNew}
           disabled={!productName}
         >
-          Nueva conversación
+          New conversation
         </button>
       </div>
 
@@ -45,19 +45,19 @@ export default function Sidebar({
               onClick={() => onSelect(conversation.id)}
             >
               <span className="thread-title">
-                {conversation.title ?? "Conversación sin título"}
+                {conversation.title ?? "Untitled conversation"}
               </span>
               <span className="thread-meta">
                 {formatDate(conversation.last_message_at ?? conversation.created_at)}
                 {" · "}
-                {conversation.message_count} mensajes
+                {conversation.message_count} messages
               </span>
             </button>
 
             <button
               type="button"
               className="thread-delete"
-              title="Eliminar conversación"
+              title="Delete conversation"
               onClick={() => onDelete(conversation.id)}
             >
               ×
@@ -66,7 +66,7 @@ export default function Sidebar({
         ))}
 
         {productName && conversations.length === 0 && (
-          <li className="threads-empty">Todavía no hay conversaciones.</li>
+          <li className="threads-empty">No conversations yet.</li>
         )}
       </ul>
     </nav>
@@ -84,6 +84,6 @@ function formatDate(value: string): string {
     date.getFullYear() === today.getFullYear();
 
   return sameDay
-    ? date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
-    : date.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+    ? date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }

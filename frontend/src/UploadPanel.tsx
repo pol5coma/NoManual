@@ -8,13 +8,13 @@ import {
 } from "./api";
 
 const TYPE_LABELS: Record<ProductType, string> = {
-  washing_machine: "Lavadora",
-  dishwasher: "Lavavajillas",
-  air_conditioner: "Aire acondicionado",
-  oven: "Horno",
-  fridge: "Frigorífico",
-  tv: "Televisor",
-  other: "Otro",
+  washing_machine: "Washing machine",
+  dishwasher: "Dishwasher",
+  air_conditioner: "Air conditioner",
+  oven: "Oven",
+  fridge: "Fridge",
+  tv: "TV",
+  other: "Other",
 };
 
 interface Props {
@@ -48,13 +48,13 @@ export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
       const manual = await uploadManual(brand.trim(), model.trim(), type, file);
       // Ingestion runs in the background, so the useful thing to report is that
       // it was accepted - not that it is ready, because it is not yet.
-      setMessage(`"${manual.title}" recibido. Procesando en segundo plano…`);
+      setMessage(`"${manual.title}" received. Processing in the background…`);
       setBrand("");
       setModel("");
       setFile(null);
       onUploaded(manual);
     } catch {
-      setMessage("No se pudo subir el manual. Comprueba que es un PDF.");
+      setMessage("Could not upload the manual. Check that it is a PDF.");
     } finally {
       setBusy(false);
     }
@@ -63,7 +63,7 @@ export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
   if (!open) {
     return (
       <button type="button" className="button" onClick={() => onOpenChange(true)}>
-        Subir un manual
+        Upload a manual
       </button>
     );
   }
@@ -71,15 +71,15 @@ export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
   return (
     <form className="upload" onSubmit={handleSubmit}>
       <div className="upload-head">
-        <h2>Subir un manual</h2>
+        <h2>Upload a manual</h2>
         <button type="button" className="link" onClick={() => onOpenChange(false)}>
-          Cerrar
+          Close
         </button>
       </div>
 
       <div className="fields">
         <label>
-          Marca
+          Brand
           <input
             value={brand}
             onChange={(event) => setBrand(event.target.value)}
@@ -88,7 +88,7 @@ export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
         </label>
 
         <label>
-          Modelo
+          Model
           <input
             value={model}
             onChange={(event) => setModel(event.target.value)}
@@ -97,7 +97,7 @@ export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
         </label>
 
         <label>
-          Tipo
+          Type
           <select
             value={type}
             onChange={(event) => setType(event.target.value as ProductType)}
@@ -117,7 +117,7 @@ export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
           accept="application/pdf"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />
-        <span>{file ? file.name : "Selecciona el PDF del manual"}</span>
+        <span>{file ? file.name : "Choose the manual PDF"}</span>
       </label>
 
       <button
@@ -125,7 +125,7 @@ export default function UploadPanel({ open, onOpenChange, onUploaded }: Props) {
         className="button primary"
         disabled={!brand || !model || !file || busy}
       >
-        {busy ? "Subiendo…" : "Subir"}
+        {busy ? "Uploading…" : "Upload"}
       </button>
 
       {message && <p className="upload-message">{message}</p>}

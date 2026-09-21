@@ -92,27 +92,27 @@ export default function IngestionPanel({
         <div>
           <h2>
             {running
-              ? "Procesando el manual"
+              ? "Processing the manual"
               : alreadyIndexed
-                ? "Este manual ya estaba indexado"
-                : "Manual procesado"}
+                ? "This manual was already indexed"
+                : "Manual processed"}
           </h2>
           <span className="ingestion-title">{manual?.title ?? "…"}</span>
         </div>
         <button type="button" className="link" onClick={onClose}>
-          Ocultar
+          Hide
         </button>
       </header>
 
       {alreadyIndexed ? (
         <div className="ingestion-note">
           <p>
-            El mismo PDF ya estaba procesado, así que se ha enlazado a este
-            aparato sin volver a generar embeddings.
+            The same PDF was already processed, so it has been linked to this
+            appliance without paying for the embeddings again.
           </p>
           {detailed && (
             <button type="button" className="button" onClick={reprocess}>
-              Reprocesar
+              Reprocess
             </button>
           )}
         </div>
@@ -125,7 +125,7 @@ export default function IngestionPanel({
             />
           </div>
           <p className="bar-label">
-            {steps.length ? `${done} de ${steps.length} pasos` : "En cola…"}
+            {steps.length ? `${done} of ${steps.length} steps` : "Queued…"}
           </p>
 
           <ol className="steps">
@@ -138,8 +138,8 @@ export default function IngestionPanel({
 
       {manual?.status === "ready" && (
         <footer className="done-label">
-          Listo{detailed && total > 0 ? ` en ${formatDuration(total)}` : ""} ·{" "}
-          {manual.page_count} páginas · {manual.chunk_count} fragmentos indexados
+          Done{detailed && total > 0 ? ` in ${formatDuration(total)}` : ""} ·{" "}
+          {manual.page_count} pages · {manual.chunk_count} chunks indexed
         </footer>
       )}
       {manual?.status === "failed" && (
@@ -218,10 +218,10 @@ function formatDuration(ms: number): string {
 }
 
 // The language breakdown arrives as an object ({"es": 26, "en": 24}); numbers
-// get thousands separators so 214 chunks and 13.847 characters read at a
+// get thousands separators so 214 chunks and 13,847 characters read at a
 // glance.
 function formatValue(value: unknown): string {
-  if (typeof value === "number") return value.toLocaleString("es-ES");
+  if (typeof value === "number") return value.toLocaleString("en-GB");
   if (value && typeof value === "object") {
     return Object.entries(value as Record<string, unknown>)
       .map(([key, count]) => `${key} ${count}`)
