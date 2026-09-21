@@ -7,7 +7,7 @@ boundary has to already hold.
 """
 
 import hashlib
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from conftest import make_manual, make_product, make_tenant
 from sqlalchemy import func, select
@@ -65,11 +65,15 @@ async def test_listing_only_returns_the_public_catalogue(session, client):
     assert titles == ["Public manual"]
 
 
-async def test_delete_with_the_wrong_tenant_is_a_404(session, client):
-    manual = await make_manual(session, status=ManualStatus.READY)
+async def test_another_tenants_manual_cannot_be_deleted(session, client):
+    """The tenant comes from the server, so this row is simply not visible."""
+    other = await make_tenant(session, name="Bosch")
+    manual = await make_manual(
+        session, tenant_id=other.id, status=ManualStatus.READY
+    )
     await session.commit()
 
-    response = await client.delete(f"/manuals/{manual.id}/{uuid4()}")
+    response = await client.delete(f"/manuals/{manual.id}")
 
     assert response.status_code == 404
     assert await session.get(Manual, manual.id) is not None
@@ -91,7 +95,7 @@ async def test_delete_removes_manual_chunks_and_file(session, client, tmp_path):
     manual.storage_key = key
     await session.commit()
 
-    response = await client.delete(f"/manuals/{manual.id}/{PUBLIC_TENANT_ID}")
+    response = await client.delete(f"/manuals/{manual.id}")
 
     assert response.status_code == 204
     # The test session still holds the row it created, so ask the database.
@@ -106,7 +110,7 @@ async def test_a_manual_being_processed_cannot_be_deleted(session, client):
     manual = await make_manual(session, status=ManualStatus.PROCESSING)
     await session.commit()
 
-    response = await client.delete(f"/manuals/{manual.id}/{PUBLIC_TENANT_ID}")
+    response = await client.delete(f"/manuals/{manual.id}")
 
     assert response.status_code == 409
     assert await session.get(Manual, manual.id) is not None

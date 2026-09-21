@@ -306,14 +306,29 @@ async def ingest_manual_now(
 
 @router.get("", response_model=list[ManualOut])
 async def list_manuals(
+    # The appliance whose manuals to list. A family manual covers several
+    # models, so this goes through the association table rather than a column.
+    product_id: UUID | None = Query(None),
+    limit: int = Query(50, le=200),
     session: AsyncSession = Depends(get_session),
 ) -> Sequence[Manual]:
-    result = await session.scalars(
+    stmt = (
         select(Manual)
         .where(Manual.tenant_id == PUBLIC_TENANT_ID)
         .order_by(Manual.created_at.desc())
-        .limit(50)
+        .limit(limit)
     )
+
+    if product_id is not None:
+        stmt = stmt.where(
+            Manual.id.in_(
+                select(manual_product.c.manual_id).where(
+                    manual_product.c.product_id == product_id
+                )
+            )
+        )
+
+    result = await session.scalars(stmt)
     return result.all()
 
 
@@ -349,19 +364,24 @@ async def manual_stats(
     }
 
 
-@router.delete("/{manual_id}/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{manual_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_manual(
     manual_id: UUID,
-    tenant_id: UUID,
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete a manual, its chunks and its stored file.
 
     Chunks and product links go with it: both carry ON DELETE CASCADE, so
     Postgres removes them in the same statement.
+
+    The tenant is fixed on the server rather than taken from the path. Letting
+    the caller name the tenant it is deleting from is exactly the parameter an
+    attacker would change; when authentication lands it comes from the API key.
     """
     manual = await session.scalar(
-        select(Manual).where(Manual.id == manual_id, Manual.tenant_id == tenant_id)
+        select(Manual).where(
+            Manual.id == manual_id, Manual.tenant_id == PUBLIC_TENANT_ID
+        )
     )
     if manual is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Manual not found.")
