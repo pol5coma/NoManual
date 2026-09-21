@@ -34,6 +34,12 @@ class QueryLog(UUIDMixin, TimestampMixin, Base):
     manual_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("manual.id", ondelete="SET NULL")
     )
+    # The thread this question was asked in, when there was one. Analytics and
+    # conversation stay in separate tables - one is the B2B product, the other
+    # is what the user sees - but a question is worth reading in context.
+    conversation_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("conversation.id", ondelete="SET NULL")
+    )
     client_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("client.id", ondelete="SET NULL")
     )

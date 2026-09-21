@@ -8,11 +8,13 @@ from nomanual.models.api_key import ApiKey
 from nomanual.models.base import Base
 from nomanual.models.chunk import Chunk
 from nomanual.models.client import Client
+from nomanual.models.conversation import Conversation, Message
 from nomanual.models.enums import (
     EscalationReason,
     EscalationStatus,
     ManualSource,
     ManualStatus,
+    MessageRole,
     ProductType,
     QueryIntent,
     TenantType,
@@ -30,6 +32,7 @@ __all__ = [
     "Base",
     "Chunk",
     "Client",
+    "Conversation",
     "Escalation",
     "EscalationReason",
     "EscalationStatus",
@@ -37,6 +40,8 @@ __all__ = [
     "Manual",
     "ManualSource",
     "ManualStatus",
+    "Message",
+    "MessageRole",
     "Product",
     "ProductType",
     "QueryIntent",

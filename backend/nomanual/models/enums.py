@@ -26,6 +26,13 @@ class ProductType(StrEnum):
     OTHER = "other"
 
 
+class MessageRole(StrEnum):
+    """Who wrote a message. The same two roles the chat models use."""
+
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
 class ManualSource(StrEnum):
     OFFICIAL = "official"
     USER_UPLOAD = "user_upload"
