@@ -227,7 +227,15 @@ async def upload_manual(
 async def get_manual(
     manual_id: UUID, session: AsyncSession = Depends(get_session)
 ) -> Manual:
+    """Fetch one manual by id.
 
+    Deliberately not filtered by tenant. Every manual lives in the public
+    catalogue today, and a deployment sold to a single manufacturer has one
+    tenant too, so there is no boundary to cross and the id is a uuid4 rather
+    than a guessable number. When authentication lands, the tenant comes from
+    the API key and this query gains its filter - it is not the caller's to
+    choose, here or in DELETE.
+    """
     # TODO: REDIS -> check if that manual have been requested recently.
 
     manual = await session.get(Manual, manual_id)
