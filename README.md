@@ -1,5 +1,7 @@
 # NoManual
 
+[![CI](https://github.com/pol5coma/NoManual/actions/workflows/ci.yml/badge.svg)](https://github.com/pol5coma/NoManual/actions/workflows/ci.yml)
+
 **Stop reading manuals. Just ask.**
 
 NoManual turns appliance manuals into a conversation. Pick your product, ask a

@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same branch makes the previous run pointless: cancel it
+# instead of paying for an answer about code that no longer exists.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      # The same image used locally: the tests need pgvector and full-text
+      # search, so a plain postgres would pass here and fail in production.
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: nomanual
+          POSTGRES_PASSWORD: nomanual
+          POSTGRES_DB: nomanual
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nomanual -d nomanual"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      # The suite creates and migrates nomanual_test on this server itself.
+      DATABASE_URL: postgresql+asyncpg://nomanual:nomanual@localhost:5432/nomanual
+      REDIS_URL: redis://localhost:6379/0
+      # No real key is needed, and none is wanted: every embedding and LLM call
+      # is faked in conftest, so CI costs nothing and never fails because a
+      # provider is having a bad day.
+      OPENAI_API_KEY: test-key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check backend tests
+
+      - name: Test
+        run: uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # `npm run build` runs tsc first, so this is the type check as well as
+      # proof that the bundle still compiles.
+      - name: Type check and build
+        run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Built, not pushed: the point is to catch a broken Dockerfile here
+      # rather than when someone clones the repository.
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
