@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     # question - not for answering. Small and cheap is the point.
     chat_model: str = "gpt-4.1-2025-04-14"
 
+    # The model that keeps a long conversation's summary up to date. Separate
+    # from chat_model so it can be swapped without touching routing or
+    # translation - summarising is the one job here that may deserve a bigger
+    # model. None means "use chat_model".
+    summary_model: str | None = None
+
+    # How many of the most recent messages travel verbatim. Everything older
+    # than this is represented by the summary instead.
+    conversation_window: int = 6
+
     # Browsers block a request from the Vite dev server (5174) to the API
     # (8000) unless the API says the origin is allowed. Listed explicitly
     # rather than "*" because the API will carry credentials later.
