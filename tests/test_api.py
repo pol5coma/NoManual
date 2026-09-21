@@ -129,6 +129,7 @@ async def test_a_ready_manual_can_be_reprocessed_on_purpose(
 
 async def test_products_are_listed_and_fetched(session, client):
     product = await make_product(session)
+    await make_manual(session, product=product, status=ManualStatus.READY)
     await session.commit()
 
     listed = await client.get("/products")
@@ -136,6 +137,26 @@ async def test_products_are_listed_and_fetched(session, client):
 
     fetched = await client.get(f"/products/{product.id}")
     assert fetched.json()["brand"] == product.brand
+
+
+async def test_a_product_with_nothing_indexed_is_not_offered(session, client):
+    """Deleting the last manual leaves an appliance that cannot answer.
+
+    The row stays - query_log points at it - but the picker must not offer an
+    appliance whose manuals are gone, or still being processed.
+    """
+    empty = await make_product(session, brand="Balay", model="NO-MANUAL")
+    pending = await make_product(session, brand="Balay", model="STILL-PROCESSING")
+    await make_manual(session, product=pending, status=ManualStatus.PROCESSING)
+    await session.commit()
+
+    listed = await client.get("/products")
+    assert listed.json() == []
+
+    # Still reachable by id, and still listable on purpose.
+    assert (await client.get(f"/products/{empty.id}")).status_code == 200
+    everything = await client.get("/products", params={"indexed_only": "false"})
+    assert len(everything.json()) == 2
 
 
 # --- Ask ----------------------------------------------------------------------
