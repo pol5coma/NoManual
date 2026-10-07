@@ -246,7 +246,7 @@ def fake_answer(monkeypatch):
 
     seen = {}
 
-    async def _answer(question, product_id=None, history=None, summary=None):
+    async def _answer(question, product_id=None, history=None, summary=None, **kwargs):
         seen["question"] = question
         seen["product_id"] = product_id
         seen["history"] = history

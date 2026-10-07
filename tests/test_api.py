@@ -172,7 +172,9 @@ def fake_answer(monkeypatch):
     from nomanual.api import ask as ask_api
 
     def _install(**state):
-        async def _answer(question, product_id=None, history=None, summary=None):
+        async def _answer(
+            question, product_id=None, history=None, summary=None, **kwargs
+        ):
             return {"answer": "Clean it every two weeks.", "intent": "how_to", **state}
 
         monkeypatch.setattr(ask_api, "answer_question", _answer)
@@ -221,7 +223,7 @@ async def test_a_question_can_be_asked_by_public_token(session, client, monkeypa
 
     captured = {}
 
-    async def _answer(question, product_id=None, history=None, summary=None):
+    async def _answer(question, product_id=None, history=None, summary=None, **kwargs):
         captured["product_id"] = product_id
         return {"answer": "ok", "intent": "how_to", "grounded": True, "citations": []}
 
