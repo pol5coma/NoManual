@@ -13,6 +13,22 @@ import {
 const POLL_MS = 600;
 const TICK_MS = 100;
 
+// The panel is resizable, and its height is remembered: whoever drags it open
+// to watch an ingestion wants it that way next time too.
+const HEIGHT_KEY = "nomanual.devHeight";
+const MIN_HEIGHT = 120;
+const DEFAULT_HEIGHT = 320;
+const STEP = 32;
+
+function maxHeight(): number {
+  // Never taller than most of the window: the conversation has to stay there.
+  return Math.round(window.innerHeight * 0.8);
+}
+
+function clampHeight(value: number): number {
+  return Math.min(Math.max(value, MIN_HEIGHT), maxHeight());
+}
+
 interface Props {
   // Manuals of the appliance in the picker. Without one, the latest uploads,
   // which is what you want right after adding a file.
@@ -35,6 +51,44 @@ export default function DeveloperPanel({
 }: Props) {
   const [manuals, setManuals] = useState<ManualUpload[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [height, setHeight] = useState(() => {
+    const stored = Number(localStorage.getItem(HEIGHT_KEY));
+    return stored ? clampHeight(stored) : DEFAULT_HEIGHT;
+  });
+
+  function resizeTo(next: number) {
+    const clamped = clampHeight(next);
+    setHeight(clamped);
+    localStorage.setItem(HEIGHT_KEY, String(clamped));
+  }
+
+  function startResize(event: React.PointerEvent<HTMLDivElement>) {
+    const startY = event.clientY;
+    const startHeight = height;
+
+    // Pointer capture keeps the events coming even when the cursor leaves the
+    // handle, which it will on the first fast drag.
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const onMove = (move: PointerEvent) =>
+      resizeTo(startHeight + (move.clientY - startY));
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  // Dragging is not the only way to move a divider: arrows resize it too.
+  function onHandleKey(event: React.KeyboardEvent) {
+    if (event.key === "ArrowDown") resizeTo(height + STEP);
+    else if (event.key === "ArrowUp") resizeTo(height - STEP);
+    else return;
+    event.preventDefault();
+  }
 
   const load = useCallback(async () => {
     try {
@@ -98,7 +152,7 @@ export default function DeveloperPanel({
   }
 
   return (
-    <section className="developer">
+    <section className="developer" style={{ height }}>
       <header>
         <h2>Manuals</h2>
         <span className="developer-scope">
@@ -122,6 +176,17 @@ export default function DeveloperPanel({
           />
         ))}
       </ul>
+
+      <div
+        className="resize-handle"
+        onPointerDown={startResize}
+        onKeyDown={onHandleKey}
+        onDoubleClick={() => resizeTo(DEFAULT_HEIGHT)}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize the developer panel"
+        tabIndex={0}
+      />
     </section>
   );
 }
