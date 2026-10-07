@@ -88,6 +88,7 @@ async def ask(
         product_id=product_id,
         history=history,
         summary=conversation.summary,
+        conversation_id=conversation.id,
     )
     latency_ms = int((time.perf_counter() - started) * 1000)
 

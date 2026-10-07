@@ -139,6 +139,7 @@ async def answer_question(
     product_id: UUID | None = None,
     history: list[tuple[str, str]] | None = None,
     summary: dict | None = None,
+    conversation_id: UUID | None = None,
 ) -> AnswerState:
     """Run a question through the graph and return the final state.
 
@@ -149,7 +150,19 @@ async def answer_question(
     history and summary are how a follow-up becomes answerable: the recent
     turns verbatim, and the running notes for everything older. Both empty on
     the first message of a conversation, which is the common case.
+
+    The run carries the product and the conversation as metadata. That is what
+    makes a trace searchable afterwards - "every escalated question about this
+    appliance" - rather than a tree to be navigated by hand. thread_id is the
+    key LangSmith groups a conversation by.
     """
+    metadata: dict[str, str] = {}
+    if product_id is not None:
+        metadata["product_id"] = str(product_id)
+    if conversation_id is not None:
+        metadata["conversation_id"] = str(conversation_id)
+        metadata["thread_id"] = str(conversation_id)
+
     return await answer_graph.ainvoke(
         {
             "question": question,
@@ -157,5 +170,10 @@ async def answer_question(
             "history": history or [],
             "summary": summary,
             "attempts": 0,
-        }
+        },
+        config={
+            "run_name": "answer_question",
+            "metadata": metadata,
+            "tags": ["follow-up" if history else "first-question"],
+        },
     )

@@ -11,6 +11,7 @@ import json
 import logging
 
 from nomanual.core.db import engine
+from nomanual.core.observability import configure_tracing
 from nomanual.evals.cases import load_cases
 from nomanual.evals.runner import RESULTS_DIR, run_all, write_report
 
@@ -54,6 +55,8 @@ async def main() -> None:
         format="  %(message)s",
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
+
+    configure_tracing()
 
     cases = load_cases()
     if args.case:

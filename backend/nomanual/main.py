@@ -14,7 +14,13 @@ from nomanual.api import (
 )
 from nomanual.core.config import get_settings
 from nomanual.core.db import engine
+from nomanual.core.observability import configure_tracing
 from nomanual.mcp_server import mcp
+
+# Before the graph is ever invoked: LangChain reads the tracing environment
+# when a run starts, and the settings only live in the Settings object until
+# something copies them across.
+configure_tracing()
 
 # The MCP transport keeps its own session manager, and Starlette does not run
 # a mounted sub-app's lifespan. Without chaining it here the endpoint mounts

@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 100 * 1024 * 1024  # 100 MB
 
     # --- Monitoring ---
+    # Tracing is off unless a key is present: a freshly cloned repository must
+    # not depend on signing up for anything.
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "nomanual"
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
 
