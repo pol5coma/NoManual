@@ -208,15 +208,23 @@ def merge_hits(*result_sets: list[SearchHit], top_k: int = TOP_K) -> list[Search
     return sorted(best.values(), key=lambda hit: hit.similarity, reverse=True)[:top_k]
 
 
+def _page_label(hit: SearchHit) -> str:
+    """Render the page range: one page reads "page 7", not "page 7-7"."""
+    if hit.page_from == hit.page_to:
+        return f"page {hit.page_from}"
+    return f"pages {hit.page_from}-{hit.page_to}"
+
+
 def hits_to_text(hits: list[SearchHit]) -> str:
     """Format hits as the context an LLM reads.
 
     The chunk id travels with the text so the model can cite it and the
-    grounding check can verify the citation against what was retrieved.
+    grounding check can verify the citation against what was retrieved. It is
+    an internal identifier: it belongs in the citations field, never in the
+    prose the user reads.
     """
     return "\n\n".join(
-        f"[chunk {hit.chunk_id} · page {hit.page_from}-{hit.page_to}]\n{hit.content}"
-        for hit in hits
+        f"[chunk {hit.chunk_id} · {_page_label(hit)}]\n{hit.content}" for hit in hits
     )
 
 
