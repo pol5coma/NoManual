@@ -284,42 +284,50 @@ export default function App() {
         )}
 
         <main className="chat">
-          {messages.length === 0 && (
-            <p className="empty">
-              {selected
-                ? `Ask anything about your ${productName}.`
-                : "Choose an appliance to start."}`
-            </p>
-          )}
+          {/* A column, not the full width: long lines are hard to read, and a
+              conversation should sit where the eye already is. */}
+          <div className="column">
+            {messages.length === 0 && (
+              <p className="empty">
+                {selected
+                  ? `Ask anything about your ${productName}.`
+                  : "Choose an appliance to start."}
+              </p>
+            )}
 
-          {messages.map((message, index) => (
-            <Turn key={index} message={message} />
-          ))}
+            {messages.map((message, index) => (
+              <Turn key={index} message={message} />
+            ))}
 
-          {loading && (
-            <div className="turn assistant thinking">Searching the manual…</div>
-          )}
-          {error && <div className="error">{error}</div>}
+            {loading && (
+              <div className="turn assistant thinking">Searching the manual…</div>
+            )}
+            {error && <div className="error">{error}</div>}
 
-          <div ref={endRef} />
+            <div ref={endRef} />
+          </div>
         </main>
 
         <form className="composer" onSubmit={handleSubmit}>
-          <input
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder={
-              selected ? "How often should I clean the filter?" : "Choose an appliance first"
-            }
-            disabled={!productId || loading}
-          />
-          <button
-            type="submit"
-            className="button primary"
-            disabled={!productId || !question.trim() || loading}
-          >
-            Ask
-          </button>
+          <div className="column composer-inner">
+            <input
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder={
+                selected
+                  ? "How often should I clean the filter?"
+                  : "Choose an appliance first"
+              }
+              disabled={!productId || loading}
+            />
+            <button
+              type="submit"
+              className="button primary"
+              disabled={!productId || !question.trim() || loading}
+            >
+              Ask
+            </button>
+          </div>
         </form>
       </div>
     </div>

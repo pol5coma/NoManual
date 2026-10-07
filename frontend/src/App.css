@@ -1,42 +1,93 @@
-/* A monochrome graphite palette with a single muted green accent.
-   Deliberately not the default blue: the accent appears only on citations and
-   the send button, so the eye lands on where an answer came from. */
+/* Warm paper, near-black ink, one muted green accent.
+   The accent is rationed on purpose: it appears on citations, on the active
+   thread and on the send button, so the eye lands on where an answer came
+   from rather than on the furniture. */
 :root {
-  --paper: #fbfbf9;
+  --paper: #faf9f7;
+  --paper-warm: #f4f2ed;
   --surface: #ffffff;
-  --ink: #1b1b18;
-  --ink-soft: #40403a;
-  --muted: #76766e;
-  --line: #e7e6e1;
-  --line-soft: #f1f0ec;
-  --accent: #2d5546;
-  --accent-soft: #eef3f0;
-  --accent-line: #cfded7;
-  --warn: #8a5a1f;
-  --warn-soft: #faf2e6;
-  --danger: #8f3030;
-  --danger-soft: #fbeeee;
 
-  --serif: ui-serif, Georgia, "Times New Roman", serif;
-  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ink: #141413;
+  --ink-soft: #35342f;
+  --muted: #6d6b63;
+  --faint: #93918a;
+
+  --line: #e6e3dc;
+  --line-soft: #efece5;
+
+  --accent: #2f5a49;
+  --accent-hover: #244639;
+  --accent-soft: #edf3f0;
+  --accent-line: #cdded6;
+
+  --warn: #8a5a1f;
+  --warn-soft: #f9f1e4;
+  --danger: #8d3232;
+  --danger-soft: #faeded;
+
+  --serif: ui-serif, "Iowan Old Style", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+
+  /* One reading column, used by the conversation and by the composer so the
+     input lines up under the text it answers. */
+  --column: 44rem;
+
+  --radius: 12px;
+  --radius-lg: 18px;
+  --shadow-soft: 0 1px 2px rgba(20, 20, 19, 0.04);
+  --shadow-lift: 0 10px 34px rgba(20, 20, 19, 0.07);
+  --ease: cubic-bezier(0.2, 0, 0.1, 1);
 }
 
 * { box-sizing: border-box; }
+
+/* A single-page app that never scrolls as a page: the window is the frame and
+   only the panes inside it move. Without locking the document, a long answer
+   would push the composer off the bottom of the screen. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 
 body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font: 15px/1.65 var(--sans);
+  font: 15.5px/1.6 var(--sans);
+  letter-spacing: -0.003em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Sidebar on the left, conversation on the right. Grid rather than flex:
-   the sidebar keeps its width and the chat takes whatever is left. */
+/* Thin and unobtrusive: the scrollbar is not part of the design. */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: #dedbd3;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: #cdc9bf; background-clip: content-box; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- layout ---------- */
+
 .shell {
   display: grid;
-  grid-template-columns: 268px minmax(0, 1fr);
-  height: 100vh;
+  grid-template-columns: 276px minmax(0, 1fr);
+  /* dvh, not vh: on mobile Safari the toolbar makes 100vh taller than what is
+     actually visible, which hides the composer behind it. */
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: var(--paper-warm);
 }
 
 .app {
@@ -44,13 +95,23 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* min-height: 0 is what lets the chat scroll instead of stretching its
+     parent: a flex item refuses to shrink below its content without it. */
+  min-height: 0;
+  overflow: hidden;
   background: var(--paper);
   border-left: 1px solid var(--line);
 }
 
-@media (max-width: 860px) {
-  /* The sidebar is the first thing to go on a phone: the conversation is the
-     product, the list of conversations is navigation. */
+/* The reading column. Everything in the conversation shares it, which is what
+   keeps the eye on one vertical line from the first message to the input. */
+.column {
+  width: 100%;
+  max-width: var(--column);
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .sidebar { display: none; }
 }
@@ -60,52 +121,54 @@ body {
 .sidebar {
   display: flex;
   flex-direction: column;
-  background: #f6f5f2;
-  overflow: hidden;
+  min-height: 0;
+  background: var(--paper-warm);
 }
 
 .sidebar-head {
-  padding: 22px 18px 16px;
+  padding: 22px 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .sidebar-product {
+  padding: 0 4px;
   font-family: var(--serif);
   font-size: 14.5px;
   color: var(--ink-soft);
-  letter-spacing: 0.01em;
 }
 
 .threads {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   margin: 0;
-  padding: 0 10px 18px;
+  padding: 0 10px 20px;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .thread {
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: 8px;
-  transition: background 0.12s ease;
+  border-radius: 9px;
+  transition: background 0.15s var(--ease);
 }
 
-.thread:hover { background: #efeeea; }
-.thread.active { background: var(--accent-soft); }
+.thread:hover { background: rgba(20, 20, 19, 0.035); }
+
+.thread.active { background: var(--surface); box-shadow: var(--shadow-soft); }
 
 .thread-open {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   padding: 9px 10px;
   background: none;
   border: 0;
@@ -123,106 +186,130 @@ body {
   white-space: nowrap;
 }
 
-.thread.active .thread-title { color: var(--accent); font-weight: 500; }
+.thread.active .thread-title { color: var(--ink); font-weight: 500; }
 
-.thread-meta { font-size: 11px; color: var(--muted); }
+.thread-meta { font-size: 11px; color: var(--faint); }
 
 /* Only on hover: a delete button on every row invites the accident. */
 .thread-delete {
   opacity: 0;
   margin-right: 6px;
-  padding: 0 6px;
+  padding: 2px 7px;
   border: 0;
   background: none;
-  color: var(--muted);
-  font-size: 17px;
+  color: var(--faint);
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
-  border-radius: 5px;
-  transition: opacity 0.12s ease, color 0.12s ease;
+  border-radius: 6px;
+  transition: opacity 0.15s var(--ease), color 0.15s var(--ease);
 }
 
 .thread:hover .thread-delete { opacity: 1; }
-.thread-delete:hover { color: var(--danger); }
+.thread-delete:hover { color: var(--danger); background: var(--danger-soft); }
 
 .threads-empty {
-  padding: 10px;
+  padding: 8px 10px;
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--faint);
 }
 
 /* ---------- header ---------- */
 
+/* Sticky and translucent: the conversation scrolls under it rather than being
+   pushed off the top. */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 26px 28px 18px;
+  padding: 16px 28px;
   border-bottom: 1px solid var(--line);
+  background: rgba(250, 249, 247, 0.82);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
 }
 
 .brand h1 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 26px;
+  font-size: 21px;
   font-weight: 500;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 .brand span {
   display: block;
-  margin-top: 2px;
-  font-size: 12.5px;
-  color: var(--muted);
-  letter-spacing: 0.01em;
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--faint);
 }
 
 .controls {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
+
+/* ---------- form controls ---------- */
 
 select,
 input,
 .file span {
   font: inherit;
+  font-size: 14px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 9px 11px;
-  transition: border-color 0.15s ease;
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-soft);
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-select { min-width: 210px; cursor: pointer; }
+select {
+  min-width: 200px;
+  cursor: pointer;
+  /* The native arrow differs on every platform; this one does not. */
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' stroke='%236d6b63' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+}
 
 select:hover,
-input:hover { border-color: #d5d4cd; }
+input:hover { border-color: #d8d4cb; }
 
 select:focus,
 input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3.5px var(--accent-soft);
 }
 
-/* One button, two weights. Secondary is the default; primary carries the
-   single action that matters on each screen. */
+/* ---------- buttons ---------- */
+
 .button {
   font: inherit;
   font-size: 13.5px;
-  padding: 9px 14px;
-  border-radius: 7px;
+  padding: 8px 14px;
+  border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-soft);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.12s var(--ease), border-color 0.15s var(--ease),
+    background 0.15s var(--ease), color 0.15s var(--ease);
 }
 
-.button:hover:not(:disabled) { border-color: #d5d4cd; background: #fcfcfa; }
+.button:hover:not(:disabled) { border-color: #d8d4cb; }
+/* A small press: the interface answers the finger before the server does. */
+.button:active:not(:disabled) { transform: scale(0.98); }
 
 .button.primary {
   background: var(--accent);
@@ -231,37 +318,48 @@ input:focus {
   font-weight: 500;
 }
 
-.button.primary:hover:not(:disabled) { background: #23443a; }
+.button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
 
 .button:disabled {
   background: var(--line-soft);
-  border-color: var(--line);
-  color: var(--muted);
+  border-color: transparent;
+  color: var(--faint);
+  box-shadow: none;
   cursor: not-allowed;
 }
 
 .button.block { width: 100%; }
 
+.button.danger { color: var(--danger); }
+.button.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: #eedcdc;
+}
+
 /* A switch, not an action: it reads as pressed when developer mode is on. */
 .toggle {
   font: inherit;
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  padding: 7px 12px;
+  font-size: 12.5px;
+  padding: 7px 13px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.15s var(--ease);
 }
 
-.toggle:hover { border-color: #d5d4cd; color: var(--ink-soft); }
+.toggle:hover { border-color: #d8d4cb; color: var(--ink-soft); }
 
 .toggle.on {
   background: var(--ink);
   border-color: var(--ink);
-  color: #f5f5f2;
+  color: #faf9f7;
+  box-shadow: none;
 }
 
 /* A text button for secondary actions: no box, so it never competes with the
@@ -271,70 +369,75 @@ input:focus {
   border: 0;
   padding: 0;
   font: inherit;
-  font-size: 13.5px;
-  color: var(--muted);
+  font-size: 13px;
+  color: var(--faint);
   cursor: pointer;
-  border-bottom: 1px solid var(--line);
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s var(--ease);
 }
 
-.link:hover { color: var(--accent); border-color: var(--accent-line); }
+.link:hover { color: var(--ink-soft); }
 
 /* ---------- chat ---------- */
 
 .chat {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 28px;
+  padding: 36px 28px 8px;
+}
+
+.chat .column {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 26px;
 }
 
 .empty {
-  margin: auto;
-  max-width: 34ch;
+  margin: 22vh 0 0;
   text-align: center;
-  color: var(--muted);
+  color: var(--faint);
   font-family: var(--serif);
-  font-size: 17px;
-  line-height: 1.55;
+  font-size: 19px;
+  letter-spacing: -0.01em;
 }
 
+/* Two very different shapes on purpose. The question is a small object the
+   user placed; the answer is a piece of text to read, so it gets no bubble,
+   no tint and all the width of the column. */
 .turn {
-  max-width: 76%;
-  padding: 13px 16px;
-  border-radius: 12px;
-  animation: rise 0.18s ease-out;
+  animation: rise 0.22s var(--ease);
 }
 
-.turn p { margin: 0; white-space: pre-wrap; }
+.turn p {
+  margin: 0;
+  white-space: pre-wrap;
+}
 
 .turn.user {
   align-self: flex-end;
-  background: var(--ink);
-  color: #f5f5f2;
-  border-bottom-right-radius: 4px;
+  max-width: 82%;
+  padding: 11px 16px;
+  background: var(--paper-warm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg) var(--radius-lg) 5px var(--radius-lg);
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
 }
 
 .turn.assistant {
-  align-self: flex-start;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-bottom-left-radius: 4px;
+  align-self: stretch;
   color: var(--ink-soft);
+  font-size: 15.5px;
+  line-height: 1.72;
 }
 
 .thinking {
-  align-self: flex-start;
-  color: var(--muted);
+  color: var(--faint);
   font-style: italic;
-  border: 1px dashed var(--line);
-  background: none;
 }
 
 @keyframes rise {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -344,9 +447,8 @@ input:focus {
 
 /* The whole point of the product: an answer you can check against a page. */
 .citations {
-  margin: 12px 0 0;
-  padding: 10px 0 0;
-  border-top: 1px solid var(--line-soft);
+  margin: 14px 0 0;
+  padding: 0;
   list-style: none;
   display: flex;
   flex-wrap: wrap;
@@ -354,23 +456,23 @@ input:focus {
 }
 
 .citations li {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--accent);
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 3px 11px;
 }
 
 .badge {
   display: inline-block;
   margin-top: 12px;
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   padding: 3px 9px;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .badge.escalated { background: var(--warn-soft); color: var(--warn); }
@@ -378,66 +480,80 @@ input:focus {
 
 .error {
   align-self: center;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--danger);
   background: var(--danger-soft);
-  border: 1px solid #f0d5d5;
-  border-radius: 8px;
-  padding: 10px 15px;
+  border: 1px solid #f1dcdc;
+  border-radius: 10px;
+  padding: 9px 14px;
 }
 
 /* ---------- composer ---------- */
 
 .composer {
+  padding: 14px 28px 26px;
+  background: linear-gradient(
+    to top,
+    var(--paper) 62%,
+    rgba(250, 249, 247, 0)
+  );
+}
+
+/* One field and one button inside a single surface, so it reads as a place to
+   write rather than as a form. */
+.composer-inner {
   display: flex;
-  gap: 10px;
-  padding: 18px 28px 24px;
-  border-top: 1px solid var(--line);
-  background: var(--paper);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 7px 7px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-.composer input { flex: 1; padding: 12px 15px; }
-
-.composer button,
-.upload button[type="submit"] {
-  padding: 12px 22px;
-  border: 1px solid var(--accent);
-  border-radius: 7px;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease;
+.composer-inner:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-lift), 0 0 0 3.5px var(--accent-soft);
 }
 
-.composer button:hover:not(:disabled),
-.upload button[type="submit"]:hover:not(:disabled) { background: #23443a; }
-
-.composer button:disabled,
-.upload button[type="submit"]:disabled {
-  background: var(--line-soft);
-  border-color: var(--line);
-  color: var(--muted);
-  cursor: not-allowed;
+.composer input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  padding: 9px 8px;
+  font-size: 15.5px;
 }
+
+.composer input:hover,
+.composer input:focus { border: 0; box-shadow: none; }
+.composer input::placeholder { color: var(--faint); }
+
+.composer .button { padding: 9px 18px; border-radius: 12px; }
 
 /* ---------- upload ---------- */
 
 .upload {
   position: absolute;
-  top: 88px;
+  top: 74px;
   right: 28px;
   z-index: 10;
-  width: 360px;
+  width: 356px;
+  /* Taller than the window it cannot be: it scrolls inside instead. */
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
   padding: 20px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(27, 27, 24, 0.09);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lift);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  animation: rise 0.2s var(--ease);
 }
 
 .upload-head {
@@ -459,69 +575,135 @@ input:focus {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 11.5px;
   letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
 .fields input,
 .fields select { width: 100%; }
 
-.file { display: block; cursor: pointer; }
+/* The native file input is unstyleable, so it is hidden and the label becomes
+   the control. */
+.file { cursor: pointer; }
 .file input { display: none; }
 
 .file span {
   display: block;
   text-align: center;
+  font-size: 13px;
   color: var(--muted);
-  font-size: 13.5px;
   border-style: dashed;
-  padding: 16px 12px;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  padding: 14px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.file:hover span { border-color: var(--accent); color: var(--accent); }
+.file:hover span { border-color: var(--accent-line); color: var(--ink-soft); }
 
 .upload-message {
   margin: 0;
-  font-size: 13px;
-  color: var(--ink-soft);
+  font-size: 12.5px;
+  color: var(--accent);
   background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
-  border-radius: 7px;
-  padding: 9px 12px;
+  border-radius: 8px;
+  padding: 9px 11px;
 }
 
 /* ---------- developer panel ---------- */
 
 /* The same corner the upload form floats over, so the panel gives it room
    rather than hiding half its numbers underneath. */
-.panel-slot { transition: margin-right 0.2s ease; }
-.panel-slot.shifted { margin-right: 404px; }
+.panel-slot {
+  /* Never grows at the conversation's expense: it keeps its own height and
+     scrolls inside itself. */
+  flex: none;
+  min-height: 0;
+  transition: margin-right 0.2s var(--ease);
+}
+.panel-slot.shifted { margin-right: 400px; }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .panel-slot.shifted { margin-right: 0; opacity: 0.35; }
 }
 
-.developer {
-  margin: 18px 28px 0;
+.developer,
+.ingestion {
+  margin: 20px 28px 0;
   padding: 16px 18px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--ink);
-  border-radius: 10px;
-  max-height: 46vh;
-  overflow-y: auto;
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  animation: rise 0.2s var(--ease);
 }
 
-.developer header {
+/* Height is set inline from the drag handle and remembered, so this only
+   declares the shape: a scrolling body under a fixed header. */
+.developer {
+  position: relative;
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  min-height: 120px;
+  max-height: 80dvh;
+  padding-bottom: 20px;
+  overflow: hidden;
+}
+
+.developer > header { flex: none; }
+
+.developer .manuals {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+/* A grab area wider than the line it draws: three pixels are impossible to
+   hit, twelve are easy. */
+.resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.resize-handle::after {
+  content: "";
+  width: 42px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: background 0.15s var(--ease), width 0.15s var(--ease);
+}
+
+.resize-handle:hover::after,
+.resize-handle:focus-visible::after {
+  background: var(--accent-line);
+  width: 64px;
+}
+
+.resize-handle:focus-visible { outline: none; }
+.ingestion { max-height: 42dvh; overflow-y: auto; }
+.ingestion { border-left: 3px solid var(--accent); }
+
+.developer header,
+.ingestion header {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
 
-.developer h2 {
+.developer h2,
+.ingestion h2 {
   margin: 0;
   font-family: var(--serif);
   font-size: 16px;
@@ -529,13 +711,27 @@ input:focus {
 }
 
 .developer-scope,
-.developer-empty {
+.ingestion-title {
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--faint);
 }
 
-.developer-empty { display: block; margin: 12px 0 0; font-size: 13px; }
+.ingestion-title { display: block; margin-top: 1px; }
+
+.developer-empty { display: block; margin: 12px 0 0; font-size: 13px; color: var(--faint); }
 .developer-error { margin: 10px 0 0; font-size: 12.5px; color: var(--danger); }
+
+.ingestion-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ingestion-note p { margin: 0; }
 
 .manuals {
   margin: 14px 0 0;
@@ -543,13 +739,13 @@ input:focus {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .manual {
   padding: 12px 13px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 11px;
   background: var(--paper);
 }
 
@@ -573,29 +769,27 @@ input:focus {
 
 .manual-facts {
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
 
 .manual-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex: none;
 }
 
-.manual-actions .button { padding: 5px 10px; font-size: 12px; }
-
-.button.danger { color: var(--danger); border-color: #eedcdc; }
-.button.danger:hover:not(:disabled) { background: var(--danger-soft); }
+.manual-actions .button { padding: 5px 11px; font-size: 12px; border-radius: 8px; }
 
 /* The state in one word, coloured the way the pipeline reads it. */
 .status {
-  font-size: 10.5px;
+  font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: 5px;
   background: var(--line-soft);
   color: var(--muted);
 }
@@ -604,70 +798,10 @@ input:focus {
 .status.processing { background: var(--warn-soft); color: var(--warn); }
 .status.failed { background: var(--danger-soft); color: var(--danger); }
 
-.manual .bar { margin-top: 12px; }
-.manual .steps { margin-top: 10px; }
-
-/* ---------- ingestion ---------- */
-
-/* The pipeline, made visible. Normally this is the part hidden behind a
-   spinner; here each stage is shown arriving, with what it produced. */
-.ingestion {
-  margin: 18px 28px 0;
-  padding: 18px 20px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(27, 27, 24, 0.05);
-  animation: rise 0.2s ease-out;
-  transition: margin-right 0.2s ease;
-}
-
-/* The upload form floats over the same corner, so the card gives it room
-   instead of hiding half its numbers underneath. */
-.ingestion.shifted { margin-right: 404px; }
-
-@media (max-width: 1100px) {
-  .ingestion.shifted { margin-right: 28px; opacity: 0.35; }
-}
-
-.ingestion header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.ingestion h2 {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.ingestion-title {
-  display: block;
-  margin-top: 1px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-.ingestion-note {
-  margin: 12px 0 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.ingestion-note p { margin: 0; }
-
-/* ---------- progress bar ---------- */
+/* ---------- progress ---------- */
 
 .bar {
-  margin-top: 14px;
+  margin-top: 13px;
   height: 4px;
   border-radius: 999px;
   background: var(--line-soft);
@@ -678,18 +812,17 @@ input:focus {
   height: 100%;
   background: var(--accent);
   border-radius: 999px;
-  transition: width 0.35s ease;
+  transition: width 0.35s var(--ease);
 }
 
 .bar-label {
-  margin: 6px 0 0;
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  margin: 7px 0 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--faint);
 }
-
-/* ---------- steps ---------- */
 
 .steps {
   margin: 14px 0 0;
@@ -702,31 +835,31 @@ input:focus {
 
 .step {
   display: flex;
-  gap: 12px;
+  gap: 11px;
   align-items: flex-start;
   font-size: 13.5px;
 }
 
-/* The marker carries the state: empty while pending, pulsing while running,
+/* The marker carries the state: empty while pending, ringed while running,
    ticked when done. */
 .step .marker {
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   margin-top: 1px;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: var(--surface);
   color: transparent;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 10px;
+  line-height: 15px;
   text-align: center;
 }
 
 .step.running .marker {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-  animation: blink 1.1s ease-in-out infinite;
+  animation: blink 1.2s ease-in-out infinite;
 }
 
 .step.done .marker {
@@ -751,24 +884,23 @@ input:focus {
 }
 
 .step-label { color: var(--ink-soft); }
-.step.pending .step-label { color: var(--muted); }
+.step.pending .step-label { color: var(--faint); }
 .step.running .step-label { color: var(--accent); font-weight: 500; }
 
 .step-time {
   font-variant-numeric: tabular-nums;
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--faint);
 }
 
 .step-time.live { color: var(--accent); }
 
-/* What the stage actually produced: pages, languages, chunks, vectors. Only
-   in developer mode - the numbers are the point there, and noise otherwise. */
+/* What the stage actually produced: pages, languages, chunks, vectors. */
 .step-detail {
   margin: 6px 0 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 5px 7px;
+  gap: 5px 6px;
 }
 
 .step-detail div {
@@ -777,16 +909,17 @@ input:focus {
   align-items: baseline;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 2px 8px;
 }
 
 .step-detail dt {
   margin: 0;
-  font-size: 10px;
+  font-size: 9.5px;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--faint);
 }
 
 .step-detail dd {
@@ -819,5 +952,5 @@ input:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ingestion, .step.running .marker { animation: none; }
+  .developer, .ingestion, .upload, .step.running .marker { animation: none; }
 }
