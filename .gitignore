@@ -95,3 +95,4 @@ logs/
 # Project specific
 /test_manuals
 REFERENCE.md
+EVALS.md
